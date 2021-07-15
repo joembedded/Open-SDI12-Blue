@@ -17,7 +17,7 @@ extern int16_t sdi_ccnt;				// Zaehlt Zeichen (alle)
 #define ERROR_DRV_ERROR     1002
 #define ERROR_TOO_MUCH_DATA 1003
 
-int16_t  sdi_gets(uint16_t anz, int32_t wt);
+int16_t  sdi_getcmd(uint16_t anz, int32_t wt);
 void sdi_putc(uint8_t c);
 int16_t sdi_send_reply(char *pc);
 

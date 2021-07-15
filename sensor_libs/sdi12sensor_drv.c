@@ -54,8 +54,8 @@ int16_t sdi_ccnt;				// Zaehlt Zeichen (alle)
 
 // wt: msec lang String abholen versuchen, Ende bei '!' in jedem Fall
 // Achtung: BREAK und ERRORs werden asynchron detektiert!
-// Blitzt 4/sek
-int16_t  sdi_gets(uint16_t anz, int32_t wt){
+// Blitzt 
+int16_t  sdi_getcmd(uint16_t anz, int32_t wt){
   int16_t res;
   char c;
   int32_t wt0=wt;
@@ -72,19 +72,21 @@ int16_t  sdi_gets(uint16_t anz, int32_t wt){
           else tb_board_led_off(0);
           tb_delay_ms(1);
         }else{
+          wt0=wt; // Soft-Timer neu starten
           if(res<=0){ // (sent) BREAK reads <0> or ERROR
-            c=128;  // BREAK
+            sdi_ccnt=0;
+            sdi_ibuf[0]=0;
           }else{
             c=(char)res;
             for(uint8_t i=0;i<7;i++) if(c&(1<<i)) c^=128; // Calc Parity
             if(c&128) return -ERROR_DATA_CORRUPT;
+            // Char was OK
+            sdi_ibuf[sdi_ccnt++]=c;
+            sdi_ibuf[sdi_ccnt]=0; // Immer Terminieren
+            if(sdi_ccnt==(SDI_IBUFS-1)) return -ERROR_TOO_MUCH_DATA; // Too much
+            if(c=='!') break; // CMD End
+            if(sdi_ccnt==anz) break; // Genau soviele lesen
           }
-          wt0=wt; // Soft-Timer neu starten
-          sdi_ibuf[sdi_ccnt++]=c;
-          sdi_ibuf[sdi_ccnt]=0; // Immer Terminieren
-          if(sdi_ccnt==(SDI_IBUFS-1)) return -ERROR_TOO_MUCH_DATA; // Too much
-          if(c=='!') break; // CMD End
-          if(sdi_ccnt==anz) break; // Genau soviele lesen
         }
   }
   return sdi_ccnt;
