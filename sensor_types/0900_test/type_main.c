@@ -84,15 +84,16 @@ bool type_service(void){
 
           // Save Request
           strncpy(result_string, sdi_ibuf, MAX_RESULT); //DSn
+          // Fast scan CMD via switch() - reply only to valid CMDs
           *sdi_obuf=0; // Assume no reply
-
-          // Parse CMD and reply
-          if(!strcmp(sdi_ibuf+1,"!")){
-            sprintf(sdi_obuf,"%c\r\n",my_sdi_addr);
-          }else if(!strcmp(sdi_ibuf+1,"I!")){
-            sprintf(sdi_obuf,"%c012SensorAbc\r\n",my_sdi_addr);
-          } //else unknown
-
+          switch(sdi_ibuf[1]){  
+          case '!': // Only "!\0"
+            if(sdi_ibuf[2]) sprintf(sdi_obuf,"%c\r\n",my_sdi_addr);
+            break;
+          case 'I':
+            if(!strcmp(sdi_ibuf+2,"!")) sprintf(sdi_obuf,"%c012SensorAbc\r\n",my_sdi_addr);
+            break;
+          } // switch
           if(*sdi_obuf){
             tb_delay_ms(9); 
             txwait_chars = sdi_send_reply(NULL); // send SDI_OBUF
