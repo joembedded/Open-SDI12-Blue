@@ -13,7 +13,9 @@
 #endif
 
 //-------- NRF52832-CPUS -------------
-#ifdef ANNA_B112_EVK
+#ifdef ANNA_SDI12 // ANNA-SDI12 Sensor platform with ANNA-B112
+	#define SDI_RX_PIN  NRF_GPIO_PIN_MAP(0, 4) // SDI12: SDI_RX (needs ext. PULUP)
+	#define SDI_TX_PIN  NRF_GPIO_PIN_MAP(0, 5) 
 #endif
 
 #ifdef YJ_NRF52832  // YJ_16048 from HolyIot (NO CE/FCC uncertified Low-Cost module)
