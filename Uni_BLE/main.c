@@ -77,7 +77,7 @@
 
 
 // Sensorspecific
-#include "type_main.h"
+#include "osx_main.h"
 
 //---------------- Periodic_sec Verwaltungsvariablen -----------------
 

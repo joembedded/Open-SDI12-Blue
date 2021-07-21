@@ -18,7 +18,7 @@
 #include "osx_pins.h"
 
 #include "tb_tools.h"
-#include "type_main.h"
+#include "osx_main.h"
 #include "device.h"
 
 #include "sdi12sensor_drv.h"

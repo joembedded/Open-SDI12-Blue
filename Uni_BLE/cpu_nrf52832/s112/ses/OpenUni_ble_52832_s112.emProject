@@ -128,7 +128,7 @@
       <file file_name="../../../../../../components/softdevice/common/nrf_sdh_soc.c" />
     </folder>
     <folder Name="ApplicSensor">
-      <file file_name="../../../../sensor_types/0900_test/type_main.c" />
+      <file file_name="../../../../sensor_types/osx_main.c" />
     </folder>
   </project>
   <configuration

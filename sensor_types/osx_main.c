@@ -20,13 +20,29 @@
 #include "osx_pins.h"
 
 #include "tb_tools.h"
-#include "type_main.h"
+#include "osx_main.h"
 #include "device.h"
 
 #include "sdi12sensor_drv.h"
+#include "bootinfo.h"
 
+// ===Sensor Part Start ===
+// Id has fixed structure, max. 30+'\0'
+//                      all cccccccc.8 mmmmmm.6 vvv.3 xx..xx.[0-13]
+char sensor_id[8+6+3+13+1]= "JoEmbedd" "Testse" "OSX" "Sno..";
 
-//----- Port-IRQ-Driver ------------
+void sensor_init(void){
+  // Set SNO to Low Mac, so same Name as BLE Advertising
+  sprintf(sensor_id+17,"%08X",mac_addr_l);
+}
+// ===Sensor Part END ===
+
+// ---Globals---
+char my_sdi_addr = '3';
+#define MAX_RESULT 80
+char result_string[MAX_RESULT+1];
+
+//----- SDI-RX-Pin-IRQ-Driver ------------
 bool rxirq_active;
 volatile uint32_t rxirq_zcnt; 
 /*irq*/ static void rxirq_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action) {
@@ -50,19 +66,72 @@ static void rxirq_off(void){
     rxirq_active = false;
 }
 
+/* Calculating the SDI12 CRC16: Also useful for external use. 
+* SDI12: Init CRC_RUN with 0x0 (Same Polynom is used for MODBUS, but Init is 0xFFFF) */
+#define POLY16 0xA001
+uint16_t sdi_track_crc16(uint8_t *pdata, uint16_t wlen, uint16_t crc_run) {
+    uint8_t j;
+    while (wlen--) {
+        crc_run ^= *pdata++;
+        for (j = 0; j < 8; j++) {
+            if (crc_run & 1)
+                crc_run = (crc_run >> 1) ^ POLY16;
+            else
+                crc_run = crc_run >> 1;
+        }
+    }
+    return crc_run;
+}
+
+
+#include "nrf_nvmc.h"
+
+/* Memory Access - Defines SECTOR 1 Sized internal parameter access
+  uint16_t crc16; // CRC of parid, qwords and all data bytes
+  uint8_t parid;  // Allowed 0..xFE
+  uint8_t qwords; // No of following data (as uint32 (can be 0))
+  uint32 qdata[qwords];
+
+  NRF52832 CPU:  Flash: 0x6F000 / 454656.d
+  NRF52840 CPU:  Flash: 0xEF000 / 978944.d
+*/
+#define MAX_DW 16 // Maximum No of uint32 Params max. 0xFE
+uint8_t intmem_buf[MAX_DW+1]; // Buffer to IntMem
+
+#define IMTMEM_SIZE   CPU_SECTOR_SIZE // 4096 for NRF52
+#define INTMEM_START  (IBOOT_FLASH_START+IBOOT_FLASH_SIZE-IMTMEM_SIZE) // Located at End of Boot-Memory
+
+int16_t intpar_mem_write(uint8_t parid, uint8_t qwords, uint8_t *pdata){
+  uint16_t plen;  // Len of Parameter Blox in Bytes
+  uint16_t crc;
+  uint32_t mem_addr;
+  intmem_buf[2]=parid;
+  intmem_buf[3]=qwords;
+  if(qwords){
+    if(qwords>MAX_DW) return -1;  // Too much data
+    plen=qwords*4;
+    memcpy(intmem_buf+4,pdata,plen);  // DSN
+  }else plen=0;
+
+  mem_addr =  INTMEM_START;  /****Erstmal noch** Spaeter ENDE SUchenundPlatzFrei?/ERROR*/
+
+  crc=sdi_track_crc16(intmem_buf+2,plen+2,/*Init*/ 0);
+  *(uint16_t*)(intmem_buf)=crc; // Add CRC
+  nrf_nvmc_write_words(mem_addr, (uint32_t *)intmem_buf, qwords+1);
+  return 0;
+}
+
+
 //--- Init (only call once)
 void type_init(void){
     uint32_t err_code;
     err_code = nrf_drv_gpiote_init();
     APP_ERROR_CHECK(err_code);
 
+    sensor_init();  // ID etc..
+
     rxirq_on(); // SDI now active
 }
-
-char my_sdi_addr = '3';
-
-#define MAX_RESULT 80
-char result_string[MAX_RESULT+1];
 
 bool type_service(void){
   int16_t res;
@@ -91,7 +160,7 @@ bool type_service(void){
             if(sdi_ibuf[2]) sprintf(sdi_obuf,"%c\r\n",my_sdi_addr);
             break;
           case 'I':
-            if(!strcmp(sdi_ibuf+2,"!")) sprintf(sdi_obuf,"%c012SensorAbc\r\n",my_sdi_addr);
+            if(!strcmp(sdi_ibuf+2,"!")) sprintf(sdi_obuf,"%c12%s\r\n",my_sdi_addr, sensor_id);
             break;
           } // switch
           if(*sdi_obuf){
@@ -115,7 +184,11 @@ bool type_service(void){
 // Die Input String und Values
 void type_cmdline(uint8_t isrc, uint8_t *pc, uint32_t val, uint32_t val2){
   switch(*pc){
+  case 'm':
 
+    tb_printf("M: %d\n",intpar_mem_write(val,0,NULL)); // Testparameter schreiben, check mit 'H'
+
+    break;
   default:
     tb_printf("???\n");
   }
