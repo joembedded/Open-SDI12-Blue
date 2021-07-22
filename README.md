@@ -4,11 +4,10 @@ _An open implementation for a SDI12 Sensor node, based on Ultra-Low-Power Blueto
 // -->Work In Pogress...<--
  
 # Installation
-- Built with SES (V5.xx) and SDK 17.02
+- Built with SES (V5.xx) and SDK 17.0.2
 - Based on JesFs 
 
 Use this Directory Structure:
-
 ```
 C:\nordic\nRF5_SDK_17.0.2
 +---components            // SDK
