@@ -101,6 +101,7 @@ uint8_t intmem_buf[MAX_DW+1]; // Buffer to IntMem
 #define IMTMEM_SIZE   CPU_SECTOR_SIZE // 4096 for NRF52
 #define INTMEM_START  (IBOOT_FLASH_START+IBOOT_FLASH_SIZE-IMTMEM_SIZE) // Located at End of Boot-Memory
 
+// Result >=0: Rel Pos. in INTMEM, <0: ERROR
 int16_t intpar_mem_write(uint8_t parid, uint8_t qwords, uint8_t *pdata){
   uint16_t plen;  // Len of Parameter Blox in Bytes
   uint16_t crc;
@@ -113,12 +114,29 @@ int16_t intpar_mem_write(uint8_t parid, uint8_t qwords, uint8_t *pdata){
     memcpy(intmem_buf+4,pdata,plen);  // DSN
   }else plen=0;
 
-  mem_addr =  INTMEM_START;  /****Erstmal noch** Spaeter ENDE SUchenundPlatzFrei?/ERROR*/
+  mem_addr =  INTMEM_START;
+  for(;;){
+    if ((*(uint32_t*)mem_addr)==0xFFFFFFFF) break;
+    if (mem_addr >= (INTMEM_START+IMTMEM_SIZE)) break;
+    mem_addr+= ((*(uint8_t*)(mem_addr+3))*4)+4; // Next Entry
+  }
+  if((int32_t)((INTMEM_START+IMTMEM_SIZE) - mem_addr)<(plen+4)){
+    return -2;  // Out of Memory
+  }
 
   crc=sdi_track_crc16(intmem_buf+2,plen+2,/*Init*/ 0);
   *(uint16_t*)(intmem_buf)=crc; // Add CRC
   nrf_nvmc_write_words(mem_addr, (uint32_t *)intmem_buf, qwords+1);
-  return 0;
+  return (int16_t)(mem_addr-INTMEM_START);
+}
+// Read (last valid) Parameter to intmem_buf - Result 
+int16_t intpar_mem_read(uint8_t parid){
+  // todo
+  return 0; 
+}
+// Clear internal Memory
+void intpar_mem_erase(void){
+  nrf_nvmc_page_erase(INTMEM_START);
 }
 
 
@@ -185,10 +203,14 @@ bool type_service(void){
 void type_cmdline(uint8_t isrc, uint8_t *pc, uint32_t val, uint32_t val2){
   switch(*pc){
   case 'm':
-
     tb_printf("M: %d\n",intpar_mem_write(val,0,NULL)); // Testparameter schreiben, check mit 'H'
-
     break;
+
+  case 'k':
+    intpar_mem_erase(); 
+    break;
+
+
   default:
     tb_printf("???\n");
   }
