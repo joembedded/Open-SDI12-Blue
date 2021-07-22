@@ -3,6 +3,10 @@ _An open implementation for a SDI12 Sensor node, based on Ultra-Low-Power Blueto
 
 // -->Work In Pogress...<--
  
+## Hardware ##
+Implementation with u-Blox ANNA-B112:
+!['ANNA_SDI'](./hardware/u-Blox_anna-b112/module_0v1.jpg "ANNA-SDI")
+
 # Installation
 - Built with SES (V5.xx) and SDK 17.0.2
 - Based on JesFs 
