@@ -8,6 +8,13 @@ Implementation with u-Blox ANNA-B112:
 
 !['ANNA_SDI'](./hardware/u-Blox_anna-b112/module_0v1.jpg "ANNA-SDI")
 
+# Sponsors #
+This project was sponsered and supported by:
+
+!['TERRA_TRANSFER'](./Sponsors/TerraTransfer.jpg "TERRA_TRANSFER")
+
+Link: [TerraTransfer GmbH](https://www.terratransfer.org)
+
 # Installation
 - Built with SES (V5.xx) and SDK 17.0.2
 - Based on JesFs 
