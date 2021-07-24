@@ -13,7 +13,7 @@ This project was sponsered and supported by:
 
 !['TERRA_TRANSFER'](./Sponsors/TerraTransfer.jpg "TERRA_TRANSFER")
 
-Link: [TerraTransfer GmbH](https://www.terratransfer.org)
+Link: [TerraTransfer GmbH, Bochum, Germany](https://www.terratransfer.org)
 
 # Installation
 - Built with SES (V5.xx) and SDK 17.0.2
