@@ -32,6 +32,16 @@
 //                      all cccccccc.8 mmmmmm.6 vvv.3 xx..xx.[0-13]
 char sensor_id[8+6+3+13+1]= "JoEmbedd" "Testse" "OSX" "Sno..";
 
+// SDI12 allows max. 9 Chars or 7 Digits! 
+// E.g use 'snprintf(channel_val[].txt,10,"%+f",...)' 
+// and check for >< 10 Mio, '+9999999.' is not legal
+#define MAX_CHAN 10 // Note: Logger-Driver can acept >10
+typedef struct{
+  char txt[12]; // Output in SDI121 Format '+/-dd.ddddd'
+} CHANNEL_VAL;
+CHANNEL_VAL channel_val[MAX_CHAN];
+
+
 void sensor_init(void){
   // Set SNO to Low Mac, so same Name as BLE Advertising
   sprintf(sensor_id+17,"%08X",mac_addr_l);
@@ -69,8 +79,6 @@ static void rxirq_off(void){
 }
 
 
-
-
 //--- Init (only call once)
 void type_init(void){
     uint32_t err_code;
@@ -83,10 +91,13 @@ void type_init(void){
     rxirq_on(); // SDI now active
 }
 
+// Static parts of CMDs
+static bool cmdcrc_flag=false;
+
 bool type_service(void){
   int16_t res;
   int16_t txwait_chars = 0;
-  char new_sdi_addr;
+  char *pc,arg_val0;
 
    // SDI12 Activity registered
    if(rxirq_zcnt){
@@ -100,13 +111,14 @@ bool type_service(void){
         txwait_chars = 0;
         break; // Timeout
       }
-      else if(res > 0 && sdi_ibuf[res-1]=='!'){ // Only Commands
+      else if(res > 0 && sdi_ibuf[res-1]=='!'){ // Only Commands (end with '!')
         if(*sdi_ibuf=='?' || *sdi_ibuf==my_sdi_addr){
 
           // Save Request
           strncpy(result_string, sdi_ibuf, MAX_RESULT); //DSn
           // Fast scan CMD via switch() - reply only to valid CMDs
           *sdi_obuf=0; // Assume no reply
+          pc=&sdi_ibuf[2];
           switch(sdi_ibuf[1]){  
           case '!': // Only "!\0"
             if(sdi_ibuf[2]) sprintf(sdi_obuf,"%c\r\n",my_sdi_addr);
@@ -115,22 +127,33 @@ bool type_service(void){
             if(!strcmp(sdi_ibuf+2,"!")) sprintf(sdi_obuf,"%c12%s\r\n",my_sdi_addr, sensor_id);
             break;
           case 'A':
-            new_sdi_addr=sdi_ibuf[2];
+            arg_val0=sdi_ibuf[2];
             if(!strcmp(sdi_ibuf+3,"!") && (
-              (new_sdi_addr>='0' && new_sdi_addr<='9') ||
-              (new_sdi_addr>='A' && new_sdi_addr<='Z') ||
-              (new_sdi_addr>='a' && new_sdi_addr<='z') )){
+              (arg_val0>='0' && arg_val0<='9') ||
+              (arg_val0>='A' && arg_val0<='Z') ||
+              (arg_val0>='a' && arg_val0<='z') )){
 
-              if(new_sdi_addr!=my_sdi_addr){
-                intpar_mem_write(ID_ADDR,1,(uint8_t*)&new_sdi_addr);
+              if(arg_val0!=my_sdi_addr){
+                intpar_mem_write(ID_ADDR,1,(uint8_t*)&arg_val0);
                 intpar_mem_read(ID_ADDR,1,(uint8_t*)&my_sdi_addr);
               }
 
               if(sdi_ibuf[2]) sprintf(sdi_obuf,"%c\r\n",my_sdi_addr);
             }
-
-
             break;
+          case 'M': // aM!, aMx!, aMC!, aMCx!, pc points after 'M' 
+            if(*pc=='C'){
+              cmdcrc_flag=true;
+              pc++;
+            }else cmdcrc_flag=false;
+            if(*pc=='!') arg_val0=0;
+            else arg_val0 = (*pc++)-'0';
+            if(!strcmp(pc,"!") && arg_val0>=0 && arg_val0<=9){
+ sprintf(sdi_obuf,"%c CRC:%d CMD:%d\r\n",my_sdi_addr, cmdcrc_flag, arg_val0);
+            }
+            break;
+
+            // default: No Reply!
           } // switch
           if(*sdi_obuf){
             tb_delay_ms(9); 
@@ -145,10 +168,11 @@ bool type_service(void){
     rxirq_zcnt=0;
 
     tb_printf("->R'%s'\r\n",result_string); 
-
+    return true; // No Periodic Service
    }
-  return false; // Service
+   return false; // Periodic Service
 }
+
 
 // Die Input String und Values
 void type_cmdline(uint8_t isrc, uint8_t *pc, uint32_t val, uint32_t val2){
@@ -175,6 +199,8 @@ void type_cmdline(uint8_t isrc, uint8_t *pc, uint32_t val, uint32_t val2){
     intpar_mem_erase(); 
     break;
 
+  case 'd':
+    break;
 
   default:
     tb_printf("???\n");
