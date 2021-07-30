@@ -15,7 +15,7 @@ Implementation with u-Blox ANNA-B112:
 ## Companion Project(s): ##
 [SDI12Term - Simple Terminal for PC with simple RS232-Connector](https://github.com/joembedded/SDI12Term):
 
-!['SDI12Term'](./Img/sdi12term_k.jpg)
+!['SDI12Term'](./Img/sdi12term_kl.jpg)
 
 # Sponsors #
 This project was sponsered and supported by:
