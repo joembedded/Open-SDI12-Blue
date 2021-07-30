@@ -3,7 +3,7 @@ _An open implementation for a SDI12 Sensor node, based on Ultra-Low-Power Blueto
 
 //======================================
 
-//     -->Work In Pogress...<--
+//    --> Work In Pogress... <--
 
 //======================================
  
