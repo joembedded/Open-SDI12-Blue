@@ -69,6 +69,7 @@
 // JW Toolbox
 #include "tb_tools.h"
 #include "bootinfo.h"
+#include "osx_main.h"
 
 #include "filepool.h"
 
@@ -836,7 +837,12 @@ static void ble_file_cmd(void) {
         break;
 
     default:
-        strcpy(parse_obuf, "???");
+       if(type_cmdline(SRC_BLE, &rx_wrk_blk[2], val)==false){
+            strcpy(parse_obuf, "???");
+       }else{
+          strcpy(parse_obuf, "OK");
+       }
+
     }
 }
 
@@ -880,13 +886,15 @@ static void parse_and_reply_bleterm(void) {
     case '/': // Mehr infos plus CPU, get **Default-PIN**
 #if DEVICE_TYP >= 300  // Pin-Check nur fuer echte Anwendungen oder echte Sensoren
         pin_ok = false;
-        if(!strcmp(pc,"LTXSuperpin")){  // Aehnlich dem guten alte Passwort...
+        if(!strcmp(pc,"OSXSuperpin")){  // Aehnlich dem guten alte Passwort...
           ;;
         }else{
-          val = strtoul(pc, 0, 0);  // Get PIN
-          if(val!=get_pin()){  // TEST-PIN
-            strcpy(parse_obuf, "~E");  // Pin ERROR
-            break;
+          val = get_pin();
+          if(val!=0xFFFFFFFF) { // PIN found => Check
+            if(val!=strtoul(pc, 0, 0)){  // Test PIN
+              strcpy(parse_obuf, "~E");  // Pin ERROR
+              break;
+            }
           }
         }
 #endif
@@ -901,6 +909,7 @@ static void parse_and_reply_bleterm(void) {
         break;
 
     case '#': // 1 oder 0 nur abfragen: UART-Kontrolle
+        if(!pin_ok) break;
         if (*pc == '1') {
             tb_init();
             tb_uart_sec_counter = TB_UART_ON_SECS;
@@ -915,6 +924,7 @@ static void parse_and_reply_bleterm(void) {
         break;
 
     case 'T': // ZEIT holen oder setzen (muss regelmaessig sein)
+        if(!pin_ok) break;
         val = strtoul(pc, 0, 0);
         if (val){
             tb_time_set(val);
@@ -941,7 +951,7 @@ static void parse_and_reply_bleterm(void) {
 
     default:
         // Parse OBUG wird gefuellt (irgendeine EIngabe ist da)
-        ble_file_cmd();
+        if(pin_ok) ble_file_cmd();
     }
     err_code = bl_tx_block_reliable(parse_obuf, -1, BB_BLE_REPLY_END); // Token for ASCII
 

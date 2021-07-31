@@ -216,12 +216,11 @@ void jw_drv_init(void) {
     sprintf(ble_device_name, "OSX%08X", mac_addr_l); // LowWord of Device Addr is ID !! LEN!
 #endif
 
-
 }
 
 // Systemdaten OSX von Disk laden/initialisieren
 void osx_system_init(void) {  
-
+  // e.g. Advertising Data
 }
 
 //========== Arbeitsflaeche===============
@@ -242,7 +241,6 @@ void uart_cmdline(void) {
     int16_t res;
     float fval;
     char *pc, stat;
-
 
     tb_printf(">");
     cmdres = tb_gets(input, INPUT_LEN, 15000, 1); // Max. 15 secs for input, echo
@@ -328,7 +326,9 @@ void uart_cmdline(void) {
 
 
         default:  // Type Specific -Command?
-            type_cmdline(SRC_CMDLINE, input, val, val2);
+            if(type_cmdline(SRC_CMDLINE, input, val)==false){
+              tb_printf("???\n");
+            }
         }
         // Measure runtime
         tb_printf("(Run: %u msec)\n", tb_deltaticks_to_ms(t0, tb_get_ticks()));

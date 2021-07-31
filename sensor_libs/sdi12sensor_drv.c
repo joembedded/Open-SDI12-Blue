@@ -48,7 +48,9 @@ static const app_uart_comm_params_t _sdi_uart_comm_params = {
 };
 
 static bool _uart_already_init;
+#ifdef USE_SDI_OBUF
 char sdi_obuf[SDI_OBUFS]; // Der OUT-Buffer (2/14; 31+1)
+#endif
 char sdi_ibuf[SDI_IBUFS]; // Der IN-Buffer 80 (2/14: 79+1)
 int16_t sdi_ccnt;				// Zaehlt Zeichen (alle)
 
@@ -99,16 +101,20 @@ void sdi_putc(uint8_t c){
   tb_putc(c);
 }
 
-// SDI Send Reply - if PC not NULL: Points to cmd, else send sdi12_obuf
-int16_t sdi_send_reply(char *pc){
+// SDI Send Reply - if PC not NULL: Points to cmd, else send sdi12_obuf (of defined)
+int16_t sdi_send_reply_crlf(char *pc){
   int16_t h=0;
   
+#ifdef USE_SDI_OBUF
   if(pc==NULL) pc=sdi_obuf;
+#endif
   while(*pc){
     sdi_putc(*pc++);
     h++;
   }
-  return h;	// LEN
+  sdi_putc('\r');
+  sdi_putc('\n');
+  return h+2;	// sent LEN
 }
 
 /* Init SDI12-UART, save old status OPTIONAL: mehrere Schnittstellen als Parameter */
