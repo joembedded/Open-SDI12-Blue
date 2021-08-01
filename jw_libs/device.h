@@ -9,7 +9,7 @@
   // Der BLE-Bootloader kann garnix, NUR (opt.) Disk, Terminal und BLE, damit kann man aber andere Firmware nachladen
   //#define HAS_FS // 200 has NO Filesystem!
 
-  //#define ENABLE_BLE // Wenn definiert SD anwerfen fuer IRQs
+  #define ENABLE_BLE // Wenn definiert SD anwerfen fuer IRQs
 
   #define DEVICE_FW_VERSION 1 // Release in Steps of 10 (35 == V3.5, 1: V0.1) // FW_VWEION uns TYP wird vei CONTENT mitgeschickt
 #endif
