@@ -56,7 +56,7 @@ int16_t sdi_ccnt;				// Zaehlt Zeichen (alle)
 
 // wt: msec lang String abholen versuchen, Ende bei '!' in jedem Fall
 // Achtung: BREAK und ERRORs werden asynchron detektiert!
-// Blitzt 
+
 int16_t  sdi_getcmd(uint16_t anz, int32_t wt){
   int16_t res;
   char c;
@@ -70,8 +70,6 @@ int16_t  sdi_getcmd(uint16_t anz, int32_t wt){
         if(res==-1){
           wt0-=1;  // msec
           if(wt0<=0) return -ERROR_NO_REPLY;  // Timeout, wenigstens CR fehlt
-          if((wt0&63)>62) tb_board_led_on(0);
-          else tb_board_led_off(0);
           tb_delay_ms(1);
         }else{
           wt0=wt; // Soft-Timer neu starten

@@ -33,6 +33,16 @@
 
   NRF52832 CPU:  Flash: 0x6F000 / 454656.d
   NRF52840 CPU:  Flash: 0xEF000 / 978944.d
+
+  Usage (e.g.):
+    - tb_printf("m: %d\n", intpar_mem_write(val, 0, NULL)); 
+
+    - tb_printf("l: %d\n", intpar_mem_write(val, strlen(pc + 1), pc + 1));
+
+    - res = intpar_mem_read(val, 255, pc);
+      if (res > 0) for (int i = 0; i < res; i++) tb_printf("%x ", pc[i]);
+
+    - intpar_mem_erase();
 */
 
 #define IMTMEM_SIZE   CPU_SECTOR_SIZE // 4096 for NRF52

@@ -75,9 +75,9 @@
 #include "jesfs_int.h" // fs_track_crc32()
 #include "filepool.h"
 
-
 // Sensorspecific
 #include "osx_main.h"
+#include "saadc.h"
 
 //---------------- Periodic_sec Verwaltungsvariablen -----------------
 
@@ -235,12 +235,12 @@ uint8_t input[INPUT_LEN + 1];
 void uart_cmdline(void) {
     int32_t i;
     int16_t cmdres;
-    size_t ble_anz;
-    uint32_t err_code;
     uint32_t val, val2;
-    int16_t res;
-    float fval;
-    char *pc, stat;
+    char *pc;
+
+#ifdef DEBUG
+    float fval; // Debug
+#endif
 
     tb_printf(">");
     cmdres = tb_gets(input, INPUT_LEN, 15000, 1); // Max. 15 secs for input, echo
@@ -260,6 +260,7 @@ void uart_cmdline(void) {
 
         // --------- Commands -------------------
 
+#ifdef DEBUG
         //==== Memory-Zeugs Anf - OK under BLE active ====
         case 'H': // Adresse, 256 Bytes zeigen
             tb_printf("Memory:");
@@ -287,8 +288,6 @@ void uart_cmdline(void) {
       //==== Memory-Zeugs End  ====
 
       // === Div BLE: Advertising Name, Conn. Params, RSSI, .. in OSX Dev
-
-#ifdef DEBUG
         case 'N':
             tb_printf("Novo: %x %x %x %x\n", _tb_novo[0], _tb_novo[1], _tb_novo[2], _tb_novo[3]);
             break;
@@ -300,6 +299,16 @@ void uart_cmdline(void) {
                 tb_dbg_pinview(val);
             }
             break;
+
+        case 'h': // AD
+              if(val<1) val=1; // val Averages (8 is more than enough)
+              saadc_init();
+              saadc_setup(0);  
+              fval = saadc_get_vbat(true, val); 
+              tb_printf("HK-BAT(%d): %f V\n", val,fval);
+              saadc_uninit();
+            break;
+
 #endif
 
         case '#':
@@ -323,7 +332,6 @@ void uart_cmdline(void) {
         case 0:
             tb_printf("OK\n");
             break;
-
 
         default:  // Type Specific -Command?
             if(type_cmdline(SRC_CMDLINE, input, val)==false){

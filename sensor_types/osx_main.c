@@ -21,9 +21,12 @@
 
 #include "device.h"
 #include "osx_main.h"
+#include "saadc.h"
 #include "tb_tools.h"
+
 #ifdef ENABLE_BLE
- #include "ltx_ble.h"
+#include "ltx_ble.h"
+
 #endif
 #include "intmem.h"
 #include "sdi12sensor_drv.h"
@@ -59,53 +62,99 @@ void sensor_init(void) {
   sprintf(sensor_id + 17, "%08X", mac_addr_l);
 }
 
-int16_t sdi_send_reply_mux(uint8_t isrc){
-  switch(isrc){
+int16_t sdi_send_reply_mux(uint8_t isrc) {
+  switch (isrc) {
   case SRC_SDI:
-    return sdi_send_reply_crlf(outrs_buf);           // send SDI_OBUF chars
+    return sdi_send_reply_crlf(outrs_buf); // send SDI_OBUF chars
   case SRC_CMDLINE:
-    tb_printf("%s<CR><LF>",outrs_buf);
+    tb_printf("%s<CR><LF>", outrs_buf);
     break;
 #ifdef ENABLE_BLE
-  case SRC_BLE:
-    ble_printf("%s<CR><LF>",outrs_buf);
-    break;
+  case SRC_BLE: {
+    bool oldr = ble_reliable_printf;
+    ble_reliable_printf = true;
+    ble_printf("%s<CR><LF>", outrs_buf);
+    ble_reliable_printf = oldr;
+  } break;
 #endif
   }
   return 1; // Something sent (len not important)
 }
 
-
 //---- Sensor CMDs Start ------------
+// return 0: CMD not valid, >0: Finished, -1: <BREAK> found
 int16_t sensor_cmd_m(uint8_t isrc, uint8_t carg) {
-  if (carg > 0)
-    return 0; // only !M supported!
+  if (carg > 1)
+    return 0; // only !M and !M1 supported!
 
-  if(isrc == SRC_SDI) tb_delay_ms(9);                           // Default Delay after CMD
-  sprintf(outrs_buf, "%c0012", my_sdi_adr); // 2 Measures in 1 secs
-  sdi_send_reply_mux(isrc);           // send SDI_OBUF
+  if (isrc == SRC_SDI)
+    tb_delay_ms(9); // Default Delay after CMD
 
-  // Check for BRAK in 'M'... todo
-  tb_delay_ms(500); // Measure... (faster than time above)
+  if (carg)
+    sprintf(outrs_buf, "%c0013", my_sdi_adr); // M1: 3 Measures in xxx secs
+  else
+    sprintf(outrs_buf, "%c0012", my_sdi_adr); // M: 2 Measures in xxx secs
+
+  sdi_send_reply_mux(isrc); // send SDI_OBUF
+
+  channel_val[0].didx = -1; // Assume no Values
+
+  //---- 'M': While waiting: scan SDI for <BREAK> ----
+  int16_t wt = 500;
+  int16_t res;
+
+  while (wt > 0) {
+    if (wt & 1)
+      tb_board_led_on(0);
+    tb_delay_ms(25); // Measure... (faster than time above)
+    tb_board_led_off(0);
+    wt -= 25;
+
+    for (;;) { // Get
+      res = tb_getc();
+      if (res == -1)
+        break;
+      if (res <= 0)
+        return -1; // Break FOund
+                   // else: ignore other than break
+    }
+  }
+  // --- 'm' Wait end
+
   snprintf(channel_val[0].txt, 11, "%+f", (float)tb_time_get() / 1.234);
   channel_val[0].punit = "xtime";
-
   snprintf(channel_val[1].txt, 11, "+%u", tb_get_ticks() % 1000000); // '+* only d/f
   channel_val[1].punit = "cnt";
-
-  channel_val[2].txt[0] = 0;                                         // End
 
   // Build Outstring (Regarding max length 35/75.. todo)
   channel_val[0].didx = 0;
   channel_val[1].didx = 0;
-  channel_val[2].didx = -1;
+
+  if (carg) {
+    float fval;
+    saadc_init();
+    saadc_setup(0);
+    fval = saadc_get_vbat(true, 8); // Calibrate and 8 Averages
+    saadc_uninit();
+
+    snprintf(channel_val[2].txt, 11, "%+.2f", fval); // Only 2
+    channel_val[2].punit = "VSup";
+    channel_val[2].didx = 0;
+
+    channel_val[3].txt[0] = 0; // End
+    channel_val[3].didx = -1;
+  } else {
+    channel_val[2].txt[0] = 0; // End
+    channel_val[2].didx = -1;
+  }
 
   sprintf(outrs_buf, "%c", my_sdi_adr); // Service Request
-  sdi_send_reply_mux(isrc);       // send SDI_OBUF
-  if(isrc == SRC_SDI) tb_delay_ms(28);                      // Needs 25 msec
+  sdi_send_reply_mux(isrc);             // send SDI_OBUF
+  if (isrc == SRC_SDI)
+    tb_delay_ms(28); // Needs 25 msec
 
   *outrs_buf = 0; // Assume no reply
-  return 1; // Cmd was OK
+  return 1;       // Cmd was OK
 }
 
 //---- Sensor CMDs End ------------
@@ -200,7 +249,8 @@ int16_t sdi_process_cmd(uint8_t isrc, char *const ps_ibuf) {
       else
         arg_val0 = (*pc++) - '0';
       if (!strcmp(pc, "!") && arg_val0 >= 0 && arg_val0 <= 9) {
-        if(sensor_cmd_m(isrc, (uint8_t)arg_val0)) return 1; // Reply was sent
+        if (sensor_cmd_m(isrc, (uint8_t)arg_val0))
+          return 1; // Reply was sent
       }
       break;
     case 'D': // D0-D9
@@ -209,7 +259,7 @@ int16_t sdi_process_cmd(uint8_t isrc, char *const ps_ibuf) {
         pc = outrs_buf;
         *pc++ = my_sdi_adr;
         *pc = 0;
-        for (uint16_t i=0; i < MAX_CHAN; i++) {
+        for (uint16_t i = 0; i < MAX_CHAN; i++) {
           i8h = channel_val[i].didx;
           if (i8h == -1)
             break;
@@ -234,7 +284,8 @@ int16_t sdi_process_cmd(uint8_t isrc, char *const ps_ibuf) {
   }
 
   if (*outrs_buf) {
-    if(isrc == SRC_SDI) tb_delay_ms(9);                        // Default Delay after CMD
+    if (isrc == SRC_SDI)
+      tb_delay_ms(9);                // Default Delay after CMD
     return sdi_send_reply_mux(isrc); // send SDI_OBUF
   } else {
     return 0;
@@ -252,8 +303,11 @@ bool type_service(void) {
     *outrs_buf = 0;
     tb_delay_ms(1);
     sdi_uart_init();
+
     for (;;) {
+      tb_board_led_on(0);
       res = sdi_getcmd(SDI_IBUFS, 100 /*ms*/); // Max. wait per Def.
+      tb_board_led_off(0);
       if (res == -ERROR_NO_REPLY) {
         txwait_chars = 0;
         break; // Timeout
@@ -274,48 +328,48 @@ bool type_service(void) {
   return false; // Periodic Service
 }
 
+void type_cmdprint_line(uint8_t isrc, char *pc) {
+  if (isrc == SRC_CMDLINE) {
+    tb_printf("%s\n", pc);
+#ifdef ENABLE_BLE
+  } else if (isrc == SRC_BLE) {
+    bool oldr = ble_reliable_printf;
+    ble_reliable_printf = true;
+    ble_printf(pc);
+    ble_reliable_printf = oldr;
+#endif
+  }
+}
+
 // Die Input String und Values
 bool type_cmdline(uint8_t isrc, uint8_t *pc, uint32_t val) {
   int res;
 
-tb_printf("CMD:'%s'",pc);
-
   switch (*pc) {
-#if DEBUG // Test intmem functions 
-  // !!! only if isrc==SRC_CMDLINE !!!
-  case 'm':
-    tb_printf("m: %d\n", intpar_mem_write(val, 0, NULL)); // Testparameter schreiben, check mit 'H'
-    break;
-  case 'l':
-    tb_printf("l: %d\n", intpar_mem_write(val, strlen(pc + 1), pc + 1)); // Testparameter schreiben, check mit 'H'
-    break;
-  case 's':
-    res = intpar_mem_read(val, 255, pc);
-    tb_printf("l: %d:", res);
-    if (res > 0)
-      for (int i = 0; i < res; i++)
-        tb_printf("%x ", pc[i]);
-    tb_printf("\n");
-    break;
-  case 'k':
-    intpar_mem_erase();
-    break;
-#endif
 
-  case 'z':  // 'z' - SDI12 emulated
-    if(isrc==SRC_CMDLINE){
-      tb_printf("%s => ",pc+1);
-      if(!sdi_process_cmd(SRC_CMDLINE, pc+1)) tb_printf("<NO REPLY>");
-      tb_printf("\n");
+  case 'z': // 'z' - SDI12 emulated
+    if (!sdi_process_cmd(isrc, pc + 1))
+      type_cmdprint_line(isrc, "<NO REPLY>");
+    break;
+
+  case 'e': // Measure
+
+    //        ble_printf("~e:%u %u",highest_channel, measure_time_msec);
+    sprintf(outrs_buf, "~e:%u %u", 3, 1000);
+    type_cmdprint_line(isrc, outrs_buf);
+
+    sensor_cmd_m(SRC_NONE, 1); // M1 Silent  // spaeter VAL
+
+    for (int16_t i = 0; i < 3; i++) { // 2+1 Kanaele
+      char *pc = channel_val[i].txt;
+      if(*pc=='+') pc++; 
+      sprintf(outrs_buf, "~#%u: %s %s", i, pc, channel_val[i].punit);
+      type_cmdprint_line(isrc, outrs_buf);
     }
-#ifdef ENABLE_BLE
-    else if(isrc==SRC_BLE){
-      bool oldr = ble_reliable_printf;
-      ble_reliable_printf=true;
-      if(!sdi_process_cmd(SRC_BLE, pc+1)) ble_printf("<NO REPLY>");
-      ble_reliable_printf=oldr;
-    }
-#endif
+
+    sprintf(outrs_buf, "~h:%u\n", 0); // Reset, Alarm, alter Alarm, Messwert, ..
+    type_cmdprint_line(isrc, outrs_buf);
+
     break;
 
   default:
