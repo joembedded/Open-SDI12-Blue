@@ -294,7 +294,6 @@ int16_t sdi_process_cmd(uint8_t isrc, char *const ps_ibuf) {
 
 bool type_service(void) {
   int16_t res;
-  int16_t txwait_chars = 0;
 
   // SDI12 Activity registered
   if (rxirq_zcnt) {
@@ -309,15 +308,13 @@ bool type_service(void) {
       res = sdi_getcmd(SDI_IBUFS, 100 /*ms*/); // Max. wait per Def.
       tb_board_led_off(0);
       if (res == -ERROR_NO_REPLY) {
-        txwait_chars = 0;
         break; // Timeout
-      } else if (res > 0) {
-        txwait_chars = sdi_process_cmd(SRC_SDI, sdi_ibuf);
-      }
+      } else if (res > 0) { // Soemthing received
+        sdi_process_cmd(SRC_SDI, sdi_ibuf);
+        // And again until No Reply
+      } // else: Only Break or Corrupt Data
     } // for()
 
-    if (txwait_chars)
-      tb_delay_ms(txwait_chars * 9); // 1 Char needs 8.33 msec
     sdi_uart_uninit();
     rxirq_on();
     rxirq_zcnt = 0;
