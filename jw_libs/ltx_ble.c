@@ -69,6 +69,7 @@
 // JW Toolbox
 #include "tb_tools.h"
 #include "bootinfo.h"
+#include "sdi12sensor_drv.h"
 #include "osx_main.h"
 
 #include "filepool.h"

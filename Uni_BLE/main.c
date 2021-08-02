@@ -76,6 +76,7 @@
 #include "filepool.h"
 
 // Sensorspecific
+#include "sdi12sensor_drv.h"
 #include "osx_main.h"
 #include "saadc.h"
 

@@ -1,5 +1,5 @@
 /****************************************************
-* type_main.c - Test Sensor SDI12-Basics
+* osx_main.c - Sensor SDI12-Driver
 *
 * (C) joembedded@gmail.com - joembedded.de
 *
@@ -15,27 +15,24 @@
 #include <string.h>
 
 #include "nrf_drv_gpiote.h"
+#include "sdi12sensor_drv.h"
 
 #include "./platform_nrf52/tb_pins_nrf52.h"
-#include "osx_pins.h"
-
 #include "device.h"
 #include "osx_main.h"
+#include "osx_pins.h"
 #include "saadc.h"
 #include "tb_tools.h"
 
 #ifdef ENABLE_BLE
 #include "ltx_ble.h"
-
 #endif
 #include "intmem.h"
-#include "sdi12sensor_drv.h"
 
 // ---Globals---
-#define ID_INTMEM_SDIADR 1 // Memory ID fuer Addresse
-char my_sdi_adr = '0';     // Factory Default
-#define MAX_OUTBUF SDI_OBUFS
+char my_sdi_adr = '0'; // Factory Default
 char outrs_buf[MAX_OUTBUF];
+SDI_VALIO sdi_valio;
 
 // ===Sensor Part Start ===
 // Id has fixed structure, max. 30+'\0'
@@ -45,22 +42,6 @@ char sensor_id[8 + 6 + 3 + 13 + 1] = "JoEmbedd"
                                      "Testse"
                                      "OSX"
                                      "Sno..";
-
-// SDI12 allows max. 9 Chars or 7 Digits!
-// E.g use 'snprintf(channel_val[].txt,10,"%+f",...)'
-// and check for >< 10 Mio, '+9999999.' is not legal
-#define MAX_CHAN 10 // Note: Logger-Driver can acept >10
-typedef struct {
-  int8_t didx;  // Index for 'D'/'R'-Commands, -1: None
-  char txt[11]; // Output in SDI121 Format '+/-dd.ddddd', max. 10 char
-  char *punit;  // OPt.
-} CHANNEL_VAL;
-CHANNEL_VAL channel_val[MAX_CHAN];
-
-void sensor_init(void) {
-  // Set SNO to Low Mac, so same Name as BLE Advertising
-  sprintf(sensor_id + 17, "%08X", mac_addr_l);
-}
 
 int16_t sdi_send_reply_mux(uint8_t isrc) {
   switch (isrc) {
@@ -81,77 +62,44 @@ int16_t sdi_send_reply_mux(uint8_t isrc) {
   return 1; // Something sent (len not important)
 }
 
+// Build Outstring (Regarding max length 35/75.. todo)
+void sensor_build_outstring(void) {
+  uint8_t didx = 0;
+  uint16_t rlen = 0, hlen;
+  uint16_t cmd_max_len = 35; /** For M-CMD, othes: todo **/
+  for (uint16_t i = 0; i < MAX_CHAN; i++) {
+    if (i >= sdi_valio.anz_channels) {
+      sdi_valio.channel_val[i].didx = -1;
+      break;
+    }
+    hlen = strlen(sdi_valio.channel_val[i].txt);
+    if (rlen + hlen > cmd_max_len) {
+      rlen = 0;
+      didx++;
+    }
+    sdi_valio.channel_val[i].didx = didx;
+  }
+}
+
 //---- Sensor CMDs Start ------------
 // return 0: CMD not valid, >0: Finished, -1: <BREAK> found
 int16_t sensor_cmd_m(uint8_t isrc, uint8_t carg) {
-  if (carg > 1)
-    return 0; // only !M and !M1 supported!
+  if (sensor_valio_input('M', carg) == false)
+    return 0; // Cmd not supported
 
   if (isrc == SRC_SDI)
     tb_delay_ms(9); // Default Delay after CMD
 
-  if (carg)
-    sprintf(outrs_buf, "%c0013", my_sdi_adr); // M1: 3 Measures in xxx secs
-  else
-    sprintf(outrs_buf, "%c0012", my_sdi_adr); // M: 2 Measures in xxx secs
+  // CHannel '0'-'9' , then ASCII
+  sprintf(outrs_buf, "%c%03u%c", my_sdi_adr, (sdi_valio.m_msec + 999) / 1000, sdi_valio.anz_channels + '0'); // M: y Measures in xxx secs
+  sdi_send_reply_mux(isrc);                                                                                  // send SDI_OBUF
 
-  sdi_send_reply_mux(isrc); // send SDI_OBUF
-
-  channel_val[0].didx = -1; // Assume no Values
-
-  //---- 'M': While waiting: scan SDI for <BREAK> ----
-  int16_t wt = 500;
-  int16_t res;
-
-  while (wt > 0) {
-    if (wt & 1)
-      tb_board_led_on(0);
-    tb_delay_ms(25); // Measure... (faster than time above)
-    tb_board_led_off(0);
-    wt -= 25;
-
-    for (;;) { // Get
-      res = tb_getc();
-      if (res == -1)
-        break;
-      if (res <= 0)
-        return -1; // Break FOund
-                   // else: ignore other than break
-    }
-  }
-  // --- 'm' Wait end
-
-  snprintf(channel_val[0].txt, 11, "%+f", (float)tb_time_get() / 1.234);
-  channel_val[0].punit = "xtime";
-  snprintf(channel_val[1].txt, 11, "+%u", tb_get_ticks() % 1000000); // '+* only d/f
-  channel_val[1].punit = "cnt";
-
-  // Build Outstring (Regarding max length 35/75.. todo)
-  channel_val[0].didx = 0;
-  channel_val[1].didx = 0;
-
-  if (carg) {
-    float fval;
-    saadc_init();
-    saadc_setup(0);
-    fval = saadc_get_vbat(true, 8); // Calibrate and 8 Averages
-    saadc_uninit();
-
-    snprintf(channel_val[2].txt, 11, "%+.2f", fval); // Only 2
-    channel_val[2].punit = "VSup";
-    channel_val[2].didx = 0;
-
-    channel_val[3].txt[0] = 0; // End
-    channel_val[3].didx = -1;
-  } else {
-    channel_val[2].txt[0] = 0; // End
-    channel_val[2].didx = -1;
-  }
+  if (sensor_valio_measure(isrc) < 0)
+    return 0; // Aborted
+  sensor_build_outstring();
 
   sprintf(outrs_buf, "%c", my_sdi_adr); // Service Request
   sdi_send_reply_mux(isrc);             // send SDI_OBUF
-  if (isrc == SRC_SDI)
-    tb_delay_ms(28); // Needs 25 msec
 
   *outrs_buf = 0; // Assume no reply
   return 1;       // Cmd was OK
@@ -249,8 +197,8 @@ int16_t sdi_process_cmd(uint8_t isrc, char *const ps_ibuf) {
       else
         arg_val0 = (*pc++) - '0';
       if (!strcmp(pc, "!") && arg_val0 >= 0 && arg_val0 <= 9) {
-        if (sensor_cmd_m(isrc, (uint8_t)arg_val0))
-          return 1; // Reply was sent
+        sensor_cmd_m(isrc, (uint8_t)arg_val0);
+        *outrs_buf = 0;
       }
       break;
     case 'D': // D0-D9
@@ -260,12 +208,12 @@ int16_t sdi_process_cmd(uint8_t isrc, char *const ps_ibuf) {
         *pc++ = my_sdi_adr;
         *pc = 0;
         for (uint16_t i = 0; i < MAX_CHAN; i++) {
-          i8h = channel_val[i].didx;
+          i8h = sdi_valio.channel_val[i].didx;
           if (i8h == -1)
             break;
           if (i8h == arg_val0) {
-            strcpy(pc, channel_val[i].txt);
-            pc += strlen(channel_val[i].txt);
+            strcpy(pc, sdi_valio.channel_val[i].txt);
+            pc += strlen(sdi_valio.channel_val[i].txt);
           }
         }
         if (cmdcrc_flag) {
@@ -308,12 +256,12 @@ bool type_service(void) {
       res = sdi_getcmd(SDI_IBUFS, 100 /*ms*/); // Max. wait per Def.
       tb_board_led_off(0);
       if (res == -ERROR_NO_REPLY) {
-        break; // Timeout
+        break;              // Timeout
       } else if (res > 0) { // Soemthing received
         sdi_process_cmd(SRC_SDI, sdi_ibuf);
         // And again until No Reply
       } // else: Only Break or Corrupt Data
-    } // for()
+    }   // for()
 
     sdi_uart_uninit();
     rxirq_on();
@@ -352,15 +300,20 @@ bool type_cmdline(uint8_t isrc, uint8_t *pc, uint32_t val) {
   case 'e': // Measure
 
     //        ble_printf("~e:%u %u",highest_channel, measure_time_msec);
-    sprintf(outrs_buf, "~e:%u %u", 3, 1000);
+    if (sensor_valio_input('M', (uint8_t)val) == false) {
+      type_cmdprint_line(isrc, "Error('e')");
+      break;
+    }
+    sprintf(outrs_buf, "~e:%u %u", sdi_valio.anz_channels, sdi_valio.m_msec);
     type_cmdprint_line(isrc, outrs_buf);
 
-    sensor_cmd_m(SRC_NONE, 1); // M1 Silent  // spaeter VAL
+    sensor_valio_measure(SRC_NONE); // SLient
 
-    for (int16_t i = 0; i < 3; i++) { // 2+1 Kanaele
-      char *pc = channel_val[i].txt;
-      if(*pc=='+') pc++; 
-      sprintf(outrs_buf, "~#%u: %s %s", i, pc, channel_val[i].punit);
+    for (int16_t i = 0; i < sdi_valio.anz_channels; i++) {
+      char *pc = sdi_valio.channel_val[i].txt;
+      if (*pc == '+')
+        pc++;
+      sprintf(outrs_buf, "~#%u: %s %s", i, pc, sdi_valio.channel_val[i].punit);
       type_cmdprint_line(isrc, outrs_buf);
     }
 

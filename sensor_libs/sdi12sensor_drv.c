@@ -15,13 +15,13 @@
 #include "nrf_drv_gpiote.h"
 
 #include "./platform_nrf52/tb_pins_nrf52.h"
+#include "sdi12sensor_drv.h"
 #include "osx_pins.h"
 
 #include "tb_tools.h"
 #include "osx_main.h"
 #include "device.h"
 
-#include "sdi12sensor_drv.h"
 
 #include "app_uart.h"
 #if defined (UART_PRESENT)

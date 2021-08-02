@@ -131,6 +131,7 @@
     </folder>
     <folder Name="ApplicSensor">
       <file file_name="../../../../sensor_types/osx_main.c" />
+      <file file_name="../../../../sensor_types/0200_test/0200_testsensor.c" />
     </folder>
   </project>
   <configuration
