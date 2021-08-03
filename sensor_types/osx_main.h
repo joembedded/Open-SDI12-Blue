@@ -31,7 +31,10 @@ typedef struct{
 extern SDI_VALIO sdi_valio;
 extern char sensor_id[8 + 6 + 3 + 13 + 1];
 
+// Internam Parameter IDs:
 #define ID_INTMEM_SDIADR 1 // Memory ID fuer Addresse
+#define ID_INTMEM_USER0  100 // First ID for Sensor
+
 extern char my_sdi_adr;
 #define MAX_OUTBUF SDI_OBUFS
 extern char outrs_buf[MAX_OUTBUF];
