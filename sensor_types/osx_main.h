@@ -48,5 +48,6 @@ bool type_service(void); // Ret: false: Kein Periodic
 void sensor_init(void);
 bool sensor_valio_input(char cmd, uint8_t carg);
 int16_t sensor_valio_measure(uint8_t isrc);
+void sensor_valio_xcmd(uint8_t isrc, char *pc);
 
 //***

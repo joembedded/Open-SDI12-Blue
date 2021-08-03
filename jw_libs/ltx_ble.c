@@ -41,6 +41,14 @@
 #include "device.h"
 
 #include "ltx_ble.h"
+#if DEVICE_TYP >= 300  
+  // *** Real Sensors should use a PIN or Password. ***
+  // *** SECRET Backdoor Password, defined in ltx_ble.secret ***
+  // e.g.:
+  // #define SECRET_GLOBALPIN "GlobalPin"
+  #include "ltx_ble.secret"
+#endif
+
 #include "ltx_errors.h"
 
 #include "nordic_common.h"
@@ -887,7 +895,7 @@ static void parse_and_reply_bleterm(void) {
     case '/': // Mehr infos plus CPU, get **Default-PIN**
 #if DEVICE_TYP >= 300  // Pin-Check nur fuer echte Anwendungen oder echte Sensoren
         pin_ok = false;
-        if(!strcmp(pc,"OSXSuperpin")){  // Aehnlich dem guten alte Passwort...
+        if(!strcmp(pc,SECRET_GLOBALPIN)){  // *** SECRET Backdoor Password, defined in ltx_ble.secret ***
           ;;
         }else{
           val = get_pin();

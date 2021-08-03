@@ -226,6 +226,18 @@ int16_t sdi_process_cmd(uint8_t isrc, char *const ps_ibuf) {
         // Now D-String is ready
       }
       break;
+    case 'X': // 'X'; Additional SDI12 - User Commands
+      if (!strcmp(ps_ibuf+2, "FactoryReset!")){
+        intpar_mem_erase();
+        sprintf(outrs_buf, "%c", my_sdi_adr);
+        tb_delay_ms(9);           // Default Delay after CMD
+        sdi_send_reply_mux(isrc); // send SDI_OBUF
+        tb_delay_ms(100);
+        tb_system_reset();        // Reset...
+      } // else 
+      sensor_valio_xcmd(isrc,ps_ibuf+2);
+
+      break;  
 
       // default: No Reply!
     } // switch

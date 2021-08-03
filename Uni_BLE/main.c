@@ -301,7 +301,7 @@ void uart_cmdline(void) {
             }
             break;
 
-        case 'h': // AD
+        case 'h': // AD with averages
               if(val<1) val=1; // val Averages (8 is more than enough)
               saadc_init();
               saadc_setup(0);  

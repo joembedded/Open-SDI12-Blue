@@ -22,10 +22,17 @@
 
 #include "intmem.h"
 
+#if DEVICE_TYP != 200
+ #error "Wrong DEVICE_TYP, select other Source in AplicSensor"
+#endif
+
 //------------------- Implementation -----------
 void sensor_init(void) {
+  // Id has fixed structure, max. 30+'\0'
+  // all cccccccc.8 mmmmmm.6 vvv.3 xx..xx.[0-13]
+  //  13 JoEmbedd   Testse   OSX   (MAC.l)
   // Set SNO to Low Mac, so same Name as BLE Advertising
-  sprintf(sensor_id + 17, "%08X", mac_addr_l);
+  sprintf(sensor_id, "JoEmbeddT0200_OSX%08X", mac_addr_l);
 }
 
 bool sensor_valio_input(char cmd, uint8_t carg) {
@@ -79,16 +86,16 @@ int16_t sensor_valio_measure(uint8_t isrc) {
   sdi_valio.channel_val[1].punit = "cnt";
 
   if (sdi_valio.measure_arg) {
-    float fval;
-    saadc_init();
-    saadc_setup(0);
-    fval = saadc_get_vbat(true, 8); // Calibrate and 8 Averages
-    saadc_uninit();
-
-    snprintf(sdi_valio.channel_val[2].txt, 11, "%+.2f", fval); // Only 2
+    snprintf(sdi_valio.channel_val[2].txt, 11, "%+.2f", get_vbat_aio() ); // Only 2 digits
     sdi_valio.channel_val[2].punit = "VSup";
   }
   return 0;
 }
+
+// 'X'; Additional SDI12 - User Commands points to 1.st char after 'X'
+void sensor_valio_xcmd(uint8_t isrc, char *pc) {
+    sprintf(outrs_buf, "%c '%s'", my_sdi_adr, pc);
+}
+
 
 //***

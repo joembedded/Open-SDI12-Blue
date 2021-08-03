@@ -77,7 +77,7 @@ void saadc_calibrate_offset(void){
 }
 
 //----------------- HK_VBAT------------------------------
-// Analoge HK_VBAT Spannung holen
+// Analoge HK_VBAT Spannung holen - SAADC bereits initialisiert
 float saadc_get_vbat(bool cali_flag, int32_t anz_mittel){
       if(cali_flag) saadc_calibrate_offset();
       int16_t value;
@@ -90,8 +90,18 @@ float saadc_get_vbat(bool cali_flag, int32_t anz_mittel){
       sum/=anz_mittel;
       return ((float)sum)*HK_VBAT_KOEFF;
 }
+float get_vbat_aio(void){ // all In One
+    float fval;
+    saadc_init();
+    saadc_setup(0);
+    fval = saadc_get_vbat(true, 8); // Calibrate and 8 Averages
+    saadc_uninit();
+    return fval;
+}
+
 /***
 #ifdef  PIN_ADD_OPTIONAL
+// needs saadc_init(); saadc_setup(0); / saadc_uninit();
 int16_t saadc_get_addopt(bool cali_flag){
       if(cali_flag) saadc_calibrate_offset();
       int16_t value;

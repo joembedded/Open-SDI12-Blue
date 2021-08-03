@@ -1,5 +1,7 @@
 Output/
 *.emSession
 *.jlink
+*.secret
 _firmware.sec
 _firmware.bin
+
