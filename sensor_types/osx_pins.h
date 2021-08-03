@@ -23,5 +23,8 @@
 	#define SDI_TX_PIN  NRF_GPIO_PIN_MAP(0, 7) 
 #endif
 
+#define B_I2CINTERN_SCL  NRF_GPIO_PIN_MAP(0, 30) 
+#define B_I2CINTERN_SDA  NRF_GPIO_PIN_MAP(0, 29) 
+
 
 //***

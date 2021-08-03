@@ -79,6 +79,7 @@
 #include "sdi12sensor_drv.h"
 #include "osx_main.h"
 #include "saadc.h"
+#include "i2c.h"
 
 //---------------- Periodic_sec Verwaltungsvariablen -----------------
 
@@ -225,6 +226,43 @@ void osx_system_init(void) {
 }
 
 //========== Arbeitsflaeche===============
+// Important: KKD has internal PullUps and max. FRQ is 100kHz
+
+#define KKD_ADDR  81  // Addr-Raum 7-Bit
+#define KKD_BUS 7
+int32_t kkd_read_reg(uint8_t reg, int32_t *pval){
+  int32_t err_code,res;
+  i2c_uni_txBuffer[0]=0x40+reg;
+  err_code=i2c_readwrite_blk_wt(KKD_ADDR,1,3,0); // 3 Bytes lesen, 0ms Warten
+  if(!err_code){
+      // Erg. 24 Bit LE int24_t
+      res=(i2c_uni_rxBuffer[2])+(i2c_uni_rxBuffer[1]<<8)+(i2c_uni_rxBuffer[0]<<16);
+      if(res&(1<<23)) res-=(1<<24); // negative Werte
+      *pval=res;
+  }
+  return err_code;
+}
+
+void kkd_i2c_read(uint16_t del, int16_t wt2){
+    int32_t res,val;
+    //tb_printf("---KKD(Int) Reg: %u(+0x40)---\n",reg);
+    ltx_i2c_init();
+
+while(wt2-->0){
+
+      tb_printf("%d ",wt2);
+      res=kkd_read_reg(0,&val); // Temp
+      if(!res) tb_printf("%.2f ",val/4096.0); // Grad
+      res=kkd_read_reg(1,&val); // Press
+      if(!res) tb_printf(" %f",val/104.8576*2); // mbar
+      tb_printf("\n");
+tb_delay_ms(del);
+}
+    ltx_i2c_uninit();
+    //tb_printf("\n---OK---\n");
+}
+
+
 
 /************************** Lokale UART-Kommando-Schnittstelle ***************************/
 
@@ -310,6 +348,9 @@ void uart_cmdline(void) {
               saadc_uninit();
             break;
 
+        case 'k':
+              kkd_i2c_read(val,val2);
+              break;
 #endif
 
         case '#':
