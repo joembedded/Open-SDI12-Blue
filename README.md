@@ -8,19 +8,14 @@ _An open implementation for a SDI12 Sensor node, based on Ultra-Low-Power Blueto
 - Optional: Secure Firmware-Updates-over-BLE (via BLE-API)
 - ...
 
-//======================================
-
 *** This is Work In Pogress... ***
-
 Current State:
 - Testsensor (Device Type 200): stable and tested
 - Real-World-Project KKD18 (Device Type 200): stable and tested
-
 todo: 
 - Docu
 - More Sensors
 
-//======================================
  
 ## Hardware ##
 Implementation with u-Blox ANNA-B112:
@@ -29,7 +24,7 @@ Implementation with u-Blox ANNA-B112:
 
 Real World Project with KKD-18:
 
-!['ANNA_SDI'](./Img/kkd18_300.jpg) "KKD18")
+!['ANNA_SDI'](./Img/kkd18_300.jpg)
 
 ## Companion Project(s): ##
 !['SDI12Term'](./Img/sdi12term_kl.jpg)
