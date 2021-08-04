@@ -1,6 +1,13 @@
 # Open SDI12-Blue
 _An open implementation for a SDI12 Sensor node, based on Ultra-Low-Power Bluetooth CPU_
 
+## Features ##
+- Buiid your own SDI12 V1.3 compatible Ultra-Low-Power Sensor with (often) less than 50 lines of Code
+- Use traditional SDII2 Bus or SDI12-Over-BLE to communicate with your Sensor
+- No APP required, use Standard WEB-Blueooth-API (Live demo: [BLE API Live (in Repository LTX BLE Demo)](https://joembedded.github.io/ltx_ble_demo/ble_api/index.html)
+- Optional: Secure Firmware-Updates-over-BLE
+- ...
+
 //======================================
 
 //    --> Work In Pogress... <--

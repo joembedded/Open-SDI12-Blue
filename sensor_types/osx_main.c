@@ -198,7 +198,7 @@ int16_t sdi_process_cmd(uint8_t isrc, char *const ps_ibuf) {
         arg_val0 = (*pc++) - '0';
       if (!strcmp(pc, "!") && arg_val0 >= 0 && arg_val0 <= 9) {
         sensor_cmd_m(isrc, (uint8_t)arg_val0);
-        *outrs_buf = 0;
+        return 1;
       }
       break;
     case 'D': // D0-D9
