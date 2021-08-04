@@ -243,9 +243,21 @@ int32_t kkd_read_reg(uint8_t reg, int32_t *pval){
   return err_code;
 }
 
+#include "osx_pins.h"
 void kkd_i2c_read(uint16_t del, int16_t wt2){
     int32_t res,val;
     //tb_printf("---KKD(Int) Reg: %u(+0x40)---\n",reg);
+
+    nrf_gpio_cfg(
+        IX_X0,
+        NRF_GPIO_PIN_DIR_OUTPUT,
+        NRF_GPIO_PIN_INPUT_DISCONNECT,
+        NRF_GPIO_PIN_NOPULL,
+        NRF_GPIO_PIN_S0H1,  // High Out
+        NRF_GPIO_PIN_NOSENSE);
+
+    nrf_gpio_pin_set(IX_X0);
+
     ltx_i2c_init();
 
 while(wt2-->0){
@@ -253,13 +265,16 @@ while(wt2-->0){
       tb_printf("%d ",wt2);
       res=kkd_read_reg(0,&val); // Temp
       if(!res) tb_printf("%.2f ",val/4096.0); // Grad
+      else tb_printf("Err%d ",res);
       res=kkd_read_reg(1,&val); // Press
-      if(!res) tb_printf(" %f",val/104.8576*2); // mbar
+      if(!res) tb_printf("%f",val/104.8576*2); // mbar
+      else tb_printf("Err%d ",res);
       tb_printf("\n");
 tb_delay_ms(del);
 }
-    ltx_i2c_uninit();
+    ltx_i2c_uninit(false); // KKD has int. PU
     //tb_printf("\n---OK---\n");
+    nrf_gpio_cfg_default(IX_X0);
 }
 
 

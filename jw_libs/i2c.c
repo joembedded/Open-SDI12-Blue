@@ -46,8 +46,8 @@ int16_t ltx_i2c_init(void){
        .clear_bus_init     = false
     };
 
-    twi_i2c_config.scl= B_I2CINTERN_SCL;
-    twi_i2c_config.sda= B_I2CINTERN_SDA;
+    twi_i2c_config.scl= IX_SCL;
+    twi_i2c_config.sda= IX_SDA;
 
     err_code = nrf_drv_twi_init(&m_twi, &twi_i2c_config, NULL, NULL); // Blocking and no context
     APP_ERROR_CHECK(err_code);
@@ -56,17 +56,19 @@ int16_t ltx_i2c_init(void){
     return 0;
 }
 
-void ltx_i2c_uninit(void){
+void ltx_i2c_uninit(bool ena_pullups){
     nrf_drv_twi_disable(&m_twi);
     nrf_drv_twi_uninit(&m_twi); // Void
 
-    // Internen Bus solange SPI nicht aktiv ist auf PullUp schalten, da sonst floatet
-    nrf_gpio_cfg_input(B_I2CINTERN_SCL,GPIO_PIN_CNF_PULL_Pullup);
-    nrf_gpio_cfg_input(B_I2CINTERN_SDA,GPIO_PIN_CNF_PULL_Pullup);
+    if(ena_pullups){
+      // evtl. Bus solange nicht aktiv aber Power auf CPU-PullUp schalten, da sonst floatet
+      nrf_gpio_cfg_input(IX_SCL,GPIO_PIN_CNF_PULL_Pullup);
+      nrf_gpio_cfg_input(IX_SDA,GPIO_PIN_CNF_PULL_Pullup);
+    }
 }
 
 //------ Einfach SCAN-Routine I2C (Hier LIS12H-WhoAmI) ----------
-void ltx_i2c_scan(void){
+void ltx_i2c_scan(bool ena_pullups){
     uint8_t i;
     int32_t res;
     tb_printf("---I2C-Scan---\n");
@@ -80,7 +82,7 @@ void ltx_i2c_scan(void){
       else tb_printf("(%d)",res);
       tb_delay_ms(1);
     }
-    ltx_i2c_uninit();
+    ltx_i2c_uninit(ena_pullups);
     tb_printf("\n---OK---\n");
 }
 
