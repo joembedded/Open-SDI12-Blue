@@ -12,6 +12,11 @@
 * more robust (to cleaning, e.g.), but Resoultion and 
 * Accuracy is often not as good as Piezo based sensors.
 *
+* Connect: 
+* - Sensor-Supply(White): I_X0 (Sensor need 1mA active)
+* - Sensor-SCL(Green): I_SCL
+* - Sensor-SDA(Yellow): I_SDA
+* - Sensor-GND(Brown): I_GND
 ***************************************************/
 
 #include <stdbool.h>
