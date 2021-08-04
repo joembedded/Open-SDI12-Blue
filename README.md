@@ -12,6 +12,7 @@ _An open implementation for a SDI12 Sensor node, based on Ultra-Low-Power Blueto
 Current State:
 - Testsensor (Device Type 200): stable and tested
 - Real-World-Project KKD18 (Device Type 200): stable and tested
+
 todo: 
 - Docu
 - More Sensors
