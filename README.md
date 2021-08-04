@@ -24,6 +24,11 @@ Implementation with u-Blox ANNA-B112:
 
 Link: [SDI12Term - Simple Terminal for PC with simple RS232-Connector](https://github.com/joembedded/SDI12Term)
 
+!['BLE API Live'](./Img/bleterm.jpg)
+
+Link: [BLE API Live (in Repository LTX BLE Demo)](https://joembedded.github.io/ltx_ble_demo/ble_api/index.html)
+
+
 
 
 # Sponsors #
