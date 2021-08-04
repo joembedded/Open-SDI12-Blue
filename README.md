@@ -10,7 +10,15 @@ _An open implementation for a SDI12 Sensor node, based on Ultra-Low-Power Blueto
 
 //======================================
 
-//    --> Work In Pogress... <--
+*** This is Work In Pogress... ***
+
+Current State:
+- Testsensor (Device Type 200): stable and tested
+- Real-World-Project KKD18 (Device Type 200): stable and tested
+
+todo: 
+- Docu
+- More Sensors
 
 //======================================
  
@@ -18,6 +26,10 @@ _An open implementation for a SDI12 Sensor node, based on Ultra-Low-Power Blueto
 Implementation with u-Blox ANNA-B112:
 
 !['ANNA_SDI'](./hardware/u-Blox_anna-b112/module_0v1.jpg "ANNA-SDI")
+
+Real World Project with KKD-18:
+
+!['ANNA_SDI'](./Img/kkd18_300.jpg) "KKD18")
 
 ## Companion Project(s): ##
 !['SDI12Term'](./Img/sdi12term_kl.jpg)

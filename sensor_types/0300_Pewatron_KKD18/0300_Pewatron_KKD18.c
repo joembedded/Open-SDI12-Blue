@@ -133,10 +133,11 @@ int16_t sensor_valio_measure(uint8_t isrc) {
         res = tb_getc();
         if (res == -1)
           break;
-        if (res <= 0)
+        if (res <= 0){
           nrf_gpio_cfg_default(IX_X0); // Power OFF
-        return -1;                     // Break Found
+          return -1;                     // Break Found
                                        // else: ignore other than break
+        }
       }
     }
   }
