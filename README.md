@@ -40,7 +40,7 @@ Link: [BLE API Live (in Repository LTX BLE Demo)](https://joembedded.github.io/l
 
 Some Facts about SDI12:
 - SDI12 is a very simple protocol, mainly designed for Ultra-Low-Power Meteorolocical and Hydrological Sensors
-- It is a simple 3-wire BUS and allows up to 10 (optionally 64) sensor nodes with 500 mtr. total cable length
+- It is a simple 3-wire Bus and allows up to 10 (optionally 64) sensor nodes with 500 mtr. total cable length
 - Although SDI12 is now available in V1.4, V1.3 is still sufficient for almost all needs (Simply ignore Chapters 5 and 6 in the Specs)
 - SDI12 communicates in a human readable format
 - Own Commands can be added very easily
