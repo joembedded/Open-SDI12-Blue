@@ -1,11 +1,11 @@
-# Open SDI12-Blue
+# Open SDI12-Blue #
 _An open implementation for a SDI12 Sensor node, based on Ultra-Low-Power Bluetooth CPU_
 
 ## Features ##
 - Build your own SDI12 V1.3 compatible Ultra-Low-Power Sensor with (often) less than 50 lines of Code
 - Use traditional SDII2 Bus or SDI12-Over-BLE to communicate with your Sensor
 - No APP required, use Standard WEB-Blueooth-API (Live demo: [BLE API Live (in Repository LTX BLE Demo)](https://joembedded.github.io/ltx_ble_demo/ble_api/index.html)
-- Optional: Secure Firmware-Updates-over-BLE (via BLE-API)
+- Optional: Secure Firmware-Updates-over-BLE (via BLE-API), Access Control via PIN, ...
 - ...
 
 *** This is Work In Pogress... ***
@@ -17,7 +17,6 @@ Current State:
 todo: 
 - Docu
 - More Sensors
-
  
 ## Hardware ##
 Implementation with u-Blox ANNA-B112:
@@ -37,8 +36,15 @@ Link: [SDI12Term - Simple Terminal for PC with simple RS232-Connector](https://g
 
 Link: [BLE API Live (in Repository LTX BLE Demo)](https://joembedded.github.io/ltx_ble_demo/ble_api/index.html)
 
+## Links ###
 
-
+Some Facts about SDI12:
+- SDI12 is a very simple protocol, mainly designed for Ultra-Low-Power Meteorolocical and Hydrological Sensors
+- It is a simple 3-wire BUS and allows up to 10 (optionally 64) sensor nodes with 500 mtr. total cable length
+- Although SDI12 is now available in V1.4, V1.3 is still sufficient for almost all needs (Simply ignore Chapters 5 and 6 in the Specs)
+- SDI12 communicates in a human readable format
+- Own Commands can be added very easily
+- SDI12 was first released in 1988 and is free to use
 
 # Sponsors #
 This project was sponsered and supported by:
@@ -68,5 +74,10 @@ C:\nordic\nRF5_SDK_17.0.2
 |       +---Tools
 |       \---Uni_BLE        
 ```
+
+## Links ##
+- The SDI-12 Support Group: https://www.sdi-12.org
+- Wikipedia: https://en.wikipedia.org/wiki/SDI-12
+
 
 ---
