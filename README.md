@@ -16,7 +16,13 @@ Current State:
 
 todo: 
 - Docu
-- More Sensors
+- More Sensors (planed): 
+  - High-Precision 24-Bit A/D (e.g. ADS1220) (for Weight Scale, Bridge Sensors, Radiation Sensors)
+  - TOF/LIDAR Sensors for Distance Sensors
+  - Simple Counter (eg. for Rain Counters)
+  - Industrial Grade Particle Sensor (e.g SPS30)
+  - ... *** Your contribution to this project is appreciated! ***
+  
  
 ## Hardware ##
 Implementation with u-Blox ANNA-B112:
@@ -43,7 +49,7 @@ Some Facts about SDI12:
 - It is a simple 3-wire Bus and allows up to 10 (optionally 64) sensor nodes with 500 mtr. total cable length
 - Although SDI12 is now available in V1.4, V1.3 is still sufficient for almost all needs (Simply ignore Chapters 5 and 6 in the Specs)
 - SDI12 communicates in a human readable format
-- Own Commands can be added very easily
+- Own Commands can be added very easily (e.g. for Calibration Coeffients)
 - SDI12 was first released in 1988 and is free to use
 
 # Sponsors #
