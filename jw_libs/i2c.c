@@ -67,16 +67,19 @@ void ltx_i2c_uninit(bool ena_pullups){
     }
 }
 
-//------ Einfach SCAN-Routine I2C (Hier LIS12H-WhoAmI) ----------
-void ltx_i2c_scan(bool ena_pullups){
+//------ Einfach SCAN-Routine I2C (Hier R LIS12H-WhoAmI) ----------
+void ltx_i2c_scan(bool fl_read, bool ena_pullups){
     uint8_t i;
     int32_t res;
-    tb_printf("---I2C-Scan---\n");
+    tb_printf("---I2C-Scan Mode:%c---\n",fl_read?'R':'W');
     ltx_i2c_init();
     for(i=0;i<127;i++){
-      //res=i2c_write_blk(i,0);  // (Alt. A) Achtung: Read nicht nehmen, kann haengen (zieht dann irgendein Sensor SDA runter)
-      i2c_uni_txBuffer[0]=0x0F; // WhoAmI (Alt. B)
-      res=i2c_readwrite_blk_wt(i,1,1,0); // (Alt. B)
+      if(fl_read){
+        res=i2c_write_blk(i,0);  // (Alt. A) Achtung: Read nicht nehmen, kann haengen (zieht dann irgendein Sensor SDA runter)
+      }else{
+        i2c_uni_txBuffer[0]=0x0F; // WhoAmI (Alt. B)
+        res=i2c_readwrite_blk_wt(i,1,1,0); // (Alt. B)
+      }
       if(res>=0) tb_printf("\nADDR %d: %u\n",i,res);
       else if(res==-10) tb_printf(".");
       else tb_printf("(%d)",res);

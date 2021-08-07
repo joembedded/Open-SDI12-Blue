@@ -3,9 +3,9 @@
 // *** Select DEVICE_TYP to build here: ***
 // Typen 100-299 sind Bootloader/Inits 300-999 Sensoren! >=1000..xx FS-Anwendungen
 // ---Bootloaders---
-//#define DEVICE_TYP  200 // Basisbootloader OHNE Serielles Flash
+#define DEVICE_TYP  200 // Basisbootloader OHNE Serielles Flash
 // ---Sensors---
-#define DEVICE_TYP  300 // *** Pewatron_Ceramic Pressure Sensor ***
+//#define DEVICE_TYP  300 // *** Pewatron_Ceramic Pressure Sensor ***
 
 
 // Features

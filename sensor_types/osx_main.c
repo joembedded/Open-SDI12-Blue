@@ -24,6 +24,10 @@
 #include "saadc.h"
 #include "tb_tools.h"
 
+#if DEBUG
+ #include "i2c.h"
+#endif
+
 #ifdef ENABLE_BLE
 #include "ltx_ble.h"
 #endif
@@ -298,19 +302,67 @@ void type_cmdprint_line(uint8_t isrc, char *pc) {
   }
 }
 
+#if DEBUG
+// === DEBUG START ===
+//====== TEST COMMANDS FOR NEW SENSOR START_A ========
+// Neuer Sensor in Arbeit KELLER-LD:
+// todo 07.08.2021 : keller LD prinzipell ansteuerbar, noch SIgnale am Oszi checken,
+// evtl. pullups noetig
+#define LD_I2C_ADDR 64
+void keller(void){
+    int32_t res;
+    ltx_i2c_init();
+    i2c_uni_txBuffer[0]=0xAC; 
+/*
+    res=i2c_readwrite_blk_wt(LD_I2C_ADDR,1,5,100); 
+*/
+    res = i2c_write_blk(LD_I2C_ADDR,1);
+    if(res){
+      tb_delay_ms(500);
+      res=i2c_read_blk(LD_I2C_ADDR,5);
+    }
+
+    ltx_i2c_uninit(false);
+    uint8_t i;
+    tb_printf("RES:%d:",res);
+    for(i=0;i<5;i++) tb_printf(" %u",i2c_uni_rxBuffer[i]);
+    tb_printf("\n");
+
+}
+//====== TEST COMMANDS FOR NEW SENSOR END_A ========
+
+
+// Additional Test-CMDs via TB_UART
+bool debug_tb_cmdline(uint8_t *pc, uint32_t val){
+  switch (*pc) {
+  case 's':
+    ltx_i2c_scan((bool)val, false); // 0:W,1:R  NoPU */
+    break;
+  //====== TEST COMMANDS FOR NEW SENSOR START_S ========
+  case 'k': // Keller LD
+    keller();
+    break;
+  //====== TEST COMMANDS FOR NEW SENSOR END_S ========
+  default:
+    return false;
+  }
+  return true; // Command processed
+}
+// === DEBUG END
+#endif
+
+
 // Die Input String und Values
 bool type_cmdline(uint8_t isrc, uint8_t *pc, uint32_t val) {
   int res;
 
   switch (*pc) {
-
   case 'z': // 'z' - SDI12 emulated
     if (!sdi_process_cmd(isrc, pc + 1))
       type_cmdprint_line(isrc, "<NO REPLY>");
     break;
 
   case 'e': // Measure
-
     //        ble_printf("~e:%u %u",highest_channel, measure_time_msec);
     if (sensor_valio_input('M', (uint8_t)val) == false) {
       type_cmdprint_line(isrc, "Error('e')");
@@ -318,9 +370,7 @@ bool type_cmdline(uint8_t isrc, uint8_t *pc, uint32_t val) {
     }
     sprintf(outrs_buf, "~e:%u %u", sdi_valio.anz_channels, sdi_valio.m_msec);
     type_cmdprint_line(isrc, outrs_buf);
-
     sensor_valio_measure(SRC_NONE); // SLient
-
     for (int16_t i = 0; i < sdi_valio.anz_channels; i++) {
       char *pc = sdi_valio.channel_val[i].txt;
       if (*pc == '+')
@@ -328,13 +378,16 @@ bool type_cmdline(uint8_t isrc, uint8_t *pc, uint32_t val) {
       sprintf(outrs_buf, "~#%u: %s %s", i, pc, sdi_valio.channel_val[i].punit);
       type_cmdprint_line(isrc, outrs_buf);
     }
-
     sprintf(outrs_buf, "~h:%u\n", 0); // Reset, Alarm, alter Alarm, Messwert, ..
     type_cmdprint_line(isrc, outrs_buf);
 
     break;
 
   default:
+#if DEBUG
+    // If DEBUG Additional Test-CMDs via TB_UART
+    if(isrc == SRC_CMDLINE) return debug_tb_cmdline(pc, val);
+#endif    
     return false;
   }
   return true; // Command processed

@@ -5,7 +5,7 @@
 void ltx_i2c_driver_pwron_init(void);
 int16_t ltx_i2c_init(void);
 void ltx_i2c_uninit(bool ena_pullups);
-void ltx_i2c_scan(bool ena_pullups);
+void ltx_i2c_scan(bool fl_read, bool ena_pullups);
 
 #define I2C_UNI_RXBUF 16          // ACHTUNG: Sollte gross genug sein, z.B. fuer UHR oder Sensoren
 #define I2C_UNI_TXBUF 16          // dto. 
