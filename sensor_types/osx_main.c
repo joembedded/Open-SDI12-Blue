@@ -305,153 +305,18 @@ void type_cmdprint_line(uint8_t isrc, char *pc) {
 #if DEBUG
 // === DEBUG START ===
 //====== TEST COMMANDS FOR NEW SENSOR START_A ========
-
-/* Keller LD Series: Piezo Sensor with I2C
-* Important: Sensor can not use repeated 
-* Start Condition ( i2c_readwrite_blk_wt())
-* Either poll status flag or wait ( = less noise on signal lines)
-*
-* Koefficients: LD stores Float Koefficients in IEEE BE.32 Format,
-* nRF52 in IEEE LE.32 Format
-* e.g 10.0 is $41 20 00 00 on LD and $00 00 20 41 on nRF52
-*/
-#define LD_I2C_ADDR 64
-typedef union{
-  uint8_t bytes[4];
-  float fval;
-} BE_FLOAT32;
-
-typedef struct{
-  bool init_flag;
-  uint8_t mode; // 0:PR 1:PA 2:PAA (3:Aux)
-  float p_min;
-  float p_max;
-} LD_KOEFFS;
-
-typedef struct{
-  int16_t err;  // 0: OK
-  float pressure;
-  float temperature;
-} LD_VALS;
-
-LD_KOEFFS ld_koeffs;
-LD_VALS ld_vals;
-
-// Get Single 16-Bit BE Koefficient
-static int16_t ld_koeff16_get(uint8_t idx, uint8_t *pk_le){ // I2C init!
-  int32_t res;
-  i2c_uni_txBuffer[0]=idx; 
-  res = i2c_write_blk(LD_I2C_ADDR,1);
-  if(!res){
-      tb_delay_ms(1); // Memory Access needs 0.5 msec
-      if(!res) res = i2c_read_blk(LD_I2C_ADDR,3); 
-      if(!res){
-        if(i2c_uni_rxBuffer[0]&4) res= -105;  // Status Memor Error
-        else{
-          *pk_le++=i2c_uni_rxBuffer[2];
-          *pk_le=i2c_uni_rxBuffer[1];
-        }
-      }
-  }else res = -101; // No Reply1
-  return (int16_t) res;
-}
-// Get Float Koeff from LD
-static int16_t lf_getfloat(uint8_t idx, float *pf){
-  BE_FLOAT32 hf;
-  int16_t res;
-  res=ld_koeff16_get(idx+1,&hf.bytes[0]);
-  if(res) return res;
-  res=ld_koeff16_get(idx,&hf.bytes[2]);
-  if(res) return res;
-  *pf=hf.fval;
-  return 0;
-}
-
-// Init All req. Koeffs.
-int16_t lf_getkoeffs(void){
-  uint16_t mode16;
-  int16_t res;
-  ld_koeffs.init_flag=false;
-  res=ld_koeff16_get(0x12,(uint8_t*)&mode16);
-  if(res) return res;
-  ld_koeffs.mode=mode16&3;  // PR PA PAA Aux
-  res=lf_getfloat(0x13,&ld_koeffs.p_min);
-  if(res) return res;
-  res=lf_getfloat(0x15,&ld_koeffs.p_max);
-  if(res) return res;
-  ld_koeffs.init_flag=true;
-  return 0;
-}
-
-
-
-#define MODE_POLL// if defined: (slightly) faster, but more noise on signal lines
-#define WAIT_MS_MAX 7 // Datasheet:4 msec, own measures: ca. 5 msec
-int16_t ld_values_get(void){
-    int32_t res;
-    ltx_i2c_init();
-    i2c_uni_txBuffer[0]=0xAC; 
-    res = i2c_write_blk(LD_I2C_ADDR,1);
-    if(!res){
-#ifdef MODE_POLL
-      int16_t wt_ms;
-      wt_ms=WAIT_MS_MAX;
-      for(;;){
-        tb_delay_ms(1);
-        wt_ms-=1;
-        res = i2c_read_blk(LD_I2C_ADDR,1); // Return: 1.st Byte!
-        if(res<0){
-          break;
-        }
-        if(!(i2c_uni_rxBuffer[0]&32)) { // Status Busy
-          res = 0;
-          break; // Value Ready
-        }
-        if(wt_ms<=0) {
-          res = -103;  // No Reply2/Timout
-          break;
-        }
-      }
-#else
-      tb_delay_ms(WAIT_MS_MAX);
-      if(!res) res = i2c_read_blk(LD_I2C_ADDR,5); 
-#endif
-      res = i2c_read_blk(LD_I2C_ADDR,5); 
-    }else res = -101; // No Reply1
-    ltx_i2c_uninit(false);
-    uint8_t i;
-
-    if(!res){
-for(i=0;i<5;i++) tb_printf("%u ",i2c_uni_rxBuffer[i]);
-        if(i2c_uni_rxBuffer[0]&32) res=-104;  // Still Busy?
-        else{
-tb_printf("  %u %u ",i2c_uni_rxBuffer[2]+(i2c_uni_rxBuffer[1]<<8),i2c_uni_rxBuffer[4]+(i2c_uni_rxBuffer[3]<<8));
-        }
-    }
-tb_printf("->RES:%d\n",res);
-
-    return (int16_t) res;
-}
 //====== TEST COMMANDS FOR NEW SENSOR END_A ========
 
 
 // Additional Test-CMDs via TB_UART
+// IMPORTANT: only SMALL capitals for User-CMDs!
 bool debug_tb_cmdline(uint8_t *pc, uint32_t val){
   switch (*pc) {
   case 's':
     ltx_i2c_scan((bool)val, false); // 0:W,1:R  NoPU */
     break;
   //====== TEST COMMANDS FOR NEW SENSOR START_S ========
-  case 'k': // Keller LD
-    ld_values_get();
-    break;
-  case 'r': // 
-    {
-    ltx_i2c_init();
-    tb_printf("K:%d\n",lf_getkoeffs());
-    ltx_i2c_uninit(false);
-    }
-    break;
+
   //====== TEST COMMANDS FOR NEW SENSOR END_S ========
   default:
     return false;

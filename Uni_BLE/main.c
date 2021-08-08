@@ -294,7 +294,7 @@ void uart_cmdline(void) {
         case 'N':
             tb_printf("Novo: %x %x %x %x\n", _tb_novo[0], _tb_novo[1], _tb_novo[2], _tb_novo[3]);
             break;
-        case 'b':
+        case 'B':
             tb_printf("Button: %u\n", tb_board_button_state(0));
             break;
         case '!':
@@ -303,7 +303,7 @@ void uart_cmdline(void) {
             }
             break;
 
-        case 'h': // AD with averages
+        case 'V': // Volt AD with averages
               if(val<1) val=1; // val Averages (8 is more than enough)
               saadc_init();
               saadc_setup(0);  

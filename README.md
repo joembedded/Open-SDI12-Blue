@@ -12,7 +12,8 @@ _An open implementation for a SDI12 Sensor node, based on Ultra-Low-Power Blueto
 
 Current State:
 - Testsensor (Device Type 200): stable and tested
-- Real-World-Project KKD18 (Device Type 200): stable and tested
+- Ceramic Pressure Sensor KKD18 (Device Type 300): stable and tested
+- Piezo Pressure Sensor KELLER LD (Device Type 310): stable, under test
 
 todo: 
 - Docu
@@ -22,7 +23,7 @@ todo:
   - Simple Counter (eg. for Rain Counters)
   - Industrial Grade Particle Sensor (e.g SPS30)
   - ... *** Your contribution to this project is appreciated! ***
-  
+ 
  
 ## Hardware ##
 Implementation with u-Blox ANNA-B112:
