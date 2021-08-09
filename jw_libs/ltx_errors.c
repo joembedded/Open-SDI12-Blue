@@ -32,8 +32,8 @@
 //void app_error_handler(ret_code_t error_code, uint32_t line_num, const uint8_t * p_file_name)
 void app_error_handler(uint32_t err_code, uint32_t line_num, const uint8_t *pfile) {
     NRF_LOG_FINAL_FLUSH();
-    tb_printf("FATAL ERROR: %X Line %u '%s'\n", err_code, line_num, pfile);
-    nrf_delay_ms(300);
+    tb_printf("FATAL: Err%X L:%u '%s'\n", err_code, line_num, pfile);
+    nrf_delay_ms(900);
 #ifdef DEBUG
     NRF_BREAKPOINT_COND;
 #endif

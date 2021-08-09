@@ -35,7 +35,7 @@ uint8_t i2c_uni_txBuffer[I2C_UNI_TXBUF];
 #define TWI_INSTANCE_ID     0
 static const nrf_drv_twi_t m_twi = NRF_DRV_TWI_INSTANCE(TWI_INSTANCE_ID);
 
-/* Dynamische Initialisierung vor Verwendung fuer entrsechenden Bus 0..6: Extern, 7: intern */
+/* Dynamische Initialisierung vor Verwendung */
 int16_t ltx_i2c_init(void){
     ret_code_t err_code;
 
@@ -43,7 +43,7 @@ int16_t ltx_i2c_init(void){
        .frequency          = NRF_DRV_TWI_FREQ_100K, 
         //.frequency          = NRF_DRV_TWI_FREQ_100K/10, // Langsame Flangen zum ***TEST***
        .interrupt_priority = APP_IRQ_PRIORITY_HIGH,
-       .clear_bus_init     = false
+       .clear_bus_init     = true // changed 8/21 to true
     };
 
     twi_i2c_config.scl= IX_SCL;

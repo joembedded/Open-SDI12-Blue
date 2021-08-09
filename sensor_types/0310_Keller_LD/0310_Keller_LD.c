@@ -195,7 +195,6 @@ int16_t ld_values_get(void) {
       res = i2c_read_blk(LD_I2C_ADDR, 5);
     } else
       res = -101; // No Reply1
-    ltx_i2c_uninit(false);
     uint8_t i;
 
     if (!res) { // Now 5 Bytes S PH:PL TH:TL are ready in i2c_uni_rxBuffer
@@ -211,6 +210,7 @@ int16_t ld_values_get(void) {
     }
   } // Koeff valid
 
+  ltx_i2c_uninit(false);
   ld_vals.err = res;
   return (int16_t)res;
 }
@@ -250,7 +250,7 @@ bool sensor_valio_input(char cmd, uint8_t carg) {
 }
 
 //The LD has no significant WarmUp Time, this is only to scan for Reps
-#define WAIT_MS 100
+#define WAIT_MS 50  
 int16_t sensor_valio_measure(uint8_t isrc) {
   //---- 'M': While waiting: scan SDI for <BREAK> ----
   int16_t res;
