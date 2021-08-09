@@ -16,15 +16,16 @@
 #include <string.h>
 
 #include "device.h"
-#include "sdi12sensor_drv.h"
-#include "osx_main.h"
 #include "saadc.h"
+#include "sdi12sensor_drv.h"
 #include "tb_tools.h"
+
+#include "osx_main.h"
 
 #include "intmem.h"
 
 #if DEVICE_TYP != 200
- #error "Wrong DEVICE_TYP, select other Source in AplicSensor"
+#error "Wrong DEVICE_TYP, select other Source in AplicSensor"
 #endif
 
 // --------- Locals -------------
@@ -35,12 +36,11 @@
   fval-=param->offset; // Def. 0.0
 */
 #define ANZ_KOEFF 4
-typedef struct{
+typedef struct {
   float koeff[ANZ_KOEFF];
 } PARAM;
 // Test Setup for Default Koeffs
-PARAM param ={{1.0, 0.0, 1.001, 0.22}};
-
+PARAM param = {{1.0, 0.0, 1.001, 0.22}};
 
 //------------------- Implementation -----------
 void sensor_init(void) {
@@ -52,8 +52,6 @@ void sensor_init(void) {
 
   // Try to read Parameters
   intpar_mem_read(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
-
-
 }
 
 bool sensor_valio_input(char cmd, uint8_t carg) {
@@ -76,45 +74,31 @@ bool sensor_valio_input(char cmd, uint8_t carg) {
   return true;
 }
 //
+#define WAIT_MS 500
 int16_t sensor_valio_measure(uint8_t isrc) {
   //---- 'M': While waiting: scan SDI for <BREAK> ----
-  int16_t wt = 500;
   int16_t res;
 
-  while (wt > 0) {
-    if (wt & 1)
-      tb_board_led_on(0);
-    tb_delay_ms(25); // Measure... (faster than time above)
-    tb_board_led_off(0);
-    wt -= 25;
+  res = sensor_wait_break(isrc, WAIT_MS);
+  if (res)
+    return res;
 
-    if (isrc == SRC_SDI) {
-      for (;;) { // Get
-        res = tb_getc();
-        if (res == -1)
-          break;
-        if (res <= 0)
-          return -1; // Break Found
-                     // else: ignore other than break
-      }
-    }
-  }
   // --- 'm' Wait end
 
-  snprintf(sdi_valio.channel_val[0].txt, 11, "%+f", (float)tb_time_get() / 1.234);
+  snprintf(sdi_valio.channel_val[0].txt, 11, "%+f", (float)tb_time_get() / 3333.3);
   sdi_valio.channel_val[0].punit = "xtime";
   snprintf(sdi_valio.channel_val[1].txt, 11, "+%u", tb_get_ticks() % 1000000); // '+* only d/f
   sdi_valio.channel_val[1].punit = "cnt";
 
   if (sdi_valio.measure_arg) {
-    snprintf(sdi_valio.channel_val[2].txt, 11, "%+.2f", get_vbat_aio() ); // Only 2 digits
+    snprintf(sdi_valio.channel_val[2].txt, 11, "%+.2f", get_vbat_aio()); // Only 2 digits
     sdi_valio.channel_val[2].punit = "VSup";
   }
   return 0;
 }
 
 // 'X'; Additional SDI12 - User Commands points to 1.st char after 'X'
-// Add here: 
+// Add here:
 // - Sensor specific Parameters Setup
 // - I/O
 // etc..
@@ -122,23 +106,26 @@ void sensor_valio_xcmd(uint8_t isrc, char *pc) {
   uint16_t pidx;
   float fval;
 
-  if(*pc=='K'){   // Kn! or Kn=val!
-    pidx=(uint16_t)strtoul(pc+1,&pc,0);
-    if(pidx>ANZ_KOEFF) return;
-    if(*pc=='='){  // Set Koeff
-      fval=strtof(pc+1,&pc);
-      param.koeff[pidx]=fval;
+  if (*pc == 'K') { // Kn! or Kn=val!
+    pidx = (uint16_t)strtoul(pc + 1, &pc, 0);
+    if (pidx > ANZ_KOEFF)
+      return;
+    if (*pc == '=') { // Set Koeff
+      fval = strtof(pc + 1, &pc);
+      param.koeff[pidx] = fval;
     }
-    if(*pc!='!') return;  
+    if (*pc != '!')
+      return;
     // Send Koeffs
-    sprintf(outrs_buf, "%cK%d=%f", my_sdi_adr, pidx,param.koeff[pidx]);
-  }else if(!strcmp(pc,"Write!")){  // Write SDI_Addr and Koefficients to Memory
-       intpar_mem_erase();  // Compact Memory
-       intpar_mem_write(ID_INTMEM_SDIADR, 1, (uint8_t *)&my_sdi_adr);
-       intpar_mem_write(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
-       sprintf(outrs_buf, "%c", my_sdi_adr);  // Standard Reply
-  } // else 
+    sprintf(outrs_buf, "%cK%d=%f", my_sdi_adr, pidx, param.koeff[pidx]);
+  } else if (!strcmp(pc, "Write!")) { // Write SDI_Addr and Koefficients to Memory
+    intpar_mem_erase();               // Compact Memory
+    intpar_mem_write(ID_INTMEM_SDIADR, 1, (uint8_t *)&my_sdi_adr);
+    intpar_mem_write(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
+    sprintf(outrs_buf, "%c", my_sdi_adr);            // Standard Reply
+  } else if (!strcmp(pc, "Sensor!")) {               // Identify Senor
+    sprintf(outrs_buf, "%cTestsensor!", my_sdi_adr); // Standard Reply
+  }                                                  // else ..
 }
-
 
 //***

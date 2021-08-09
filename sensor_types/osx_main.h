@@ -52,5 +52,6 @@ void sensor_init(void);
 bool sensor_valio_input(char cmd, uint8_t carg);
 int16_t sensor_valio_measure(uint8_t isrc);
 void sensor_valio_xcmd(uint8_t isrc, char *pc);
+int16_t sensor_wait_break(uint8_t isrc, int16_t wt);
 
 //***

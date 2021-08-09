@@ -222,7 +222,8 @@ void sensor_init(void) {
   // all cccccccc.8 mmmmmm.6 vvv.3 xx..xx.[0-13]
   //  13 JoEmbedd   Testse   OSX   (MAC.l)
   // Set SNO to Low Mac, so same Name as BLE Advertising
-  sprintf(sensor_id, "TT_PT_LD_0310_OSX%08X", mac_addr_l);
+  sprintf(sensor_id, "TT_KLD_A_0310_OSX%08X", mac_addr_l);
+  // TT:'TerraTransfer' KLD:'Keller LD', A:'Version: Range from Sensor'
 
   // Try to read Parameters
   intpar_mem_read(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
@@ -248,55 +249,40 @@ bool sensor_valio_input(char cmd, uint8_t carg) {
   return true;
 }
 
-//The LD has no significant WarmUp Time, this is only to can for Reps
+//The LD has no significant WarmUp Time, this is only to scan for Reps
+#define WAIT_MS 100
 int16_t sensor_valio_measure(uint8_t isrc) {
   //---- 'M': While waiting: scan SDI for <BREAK> ----
-  int16_t wt = 100; // WarmUpTime
   int16_t res;
   int32_t val;
   float fval;
 
-  while (wt > 0) {
-    if (wt & 1)
-      tb_board_led_on(0);
-    tb_delay_ms(25); // Measure... (faster than time above)
-    tb_board_led_off(0);
-    wt -= 25;
-
-    if (isrc == SRC_SDI) {
-      for (;;) { // Get
-        res = tb_getc();
-        if (res == -1)
-          break;
-        if (res <= 0) {
-          return -1; // Break Found
-                     // else: ignore other than break
-        }
-      }
-    }
-  }
+  res = sensor_wait_break(isrc, WAIT_MS);
+  if (res)
+    return res;
   // --- 'm' Wait end
 
   // Read Data from Sensor
-
-  sdi_valio.channel_val[0].punit = "oC";
   res = ld_values_get();
+
+  // Prepare Output
+  sdi_valio.channel_val[0].punit = "Bar";
+  if (!res) {
+    fval = ld_vals.pressure;
+    fval *= param.koeff[2]; // Def. 1.0
+    fval -= param.koeff[3]; // Def. 0.0
+  } else {
+    fval = -1000 + res; // Error..
+  }
+  snprintf(sdi_valio.channel_val[0].txt, 11, "%+.5f", fval);
+
+  sdi_valio.channel_val[1].punit = "oC";
   if (!res) {
     fval = ld_vals.temperature;
     fval *= param.koeff[0]; // Def. 1.0
     fval -= param.koeff[1]; // Def. 0.0
   } else {
     fval = res; // Error..
-  }
-  snprintf(sdi_valio.channel_val[0].txt, 11, "%+.2f", fval);
-
-  sdi_valio.channel_val[1].punit = "mBar";
-  if (!res) {
-    fval = ld_vals.pressure*1000;
-    fval *= param.koeff[2]; // Def. 1.0
-    fval -= param.koeff[3]; // Def. 0.0
-  } else {
-    fval = -1000 + res; // Error..
   }
   snprintf(sdi_valio.channel_val[1].txt, 11, "%+.2f", fval);
 
@@ -334,7 +320,7 @@ void sensor_valio_xcmd(uint8_t isrc, char *pc) {
     intpar_mem_write(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
     sprintf(outrs_buf, "%c", my_sdi_adr);                                             // Standard Reply
   } else if (!strcmp(pc, "Sensor!")) {                                                // Identify Senor
-    sprintf(outrs_buf, "%cP=%.1f-%.1f", my_sdi_adr, ld_koeffs.p_min, ld_koeffs.p_max); // Standard Reply
+    sprintf(outrs_buf, "%cLD,P=%.1f:%.1f,", my_sdi_adr, ld_koeffs.p_min, ld_koeffs.p_max); // Standard Reply
     switch (ld_koeffs.mode) {
     case 0:
       strcat(outrs_buf, "PR!");

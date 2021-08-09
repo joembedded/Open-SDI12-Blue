@@ -109,6 +109,31 @@ int16_t sensor_cmd_m(uint8_t isrc, uint8_t carg) {
   return 1;       // Cmd was OK
 }
 
+// Break can interrupt M. OPtional Wait in MS
+int16_t sensor_wait_break(uint8_t isrc, int16_t wt){
+  int16_t res;
+  while (wt > 0) {
+    if (wt & 1)
+      tb_board_led_on(0);
+    tb_delay_ms(25); // Measure... (faster than time above)
+    tb_board_led_off(0);
+    wt -= 25;
+
+    if (isrc == SRC_SDI) {
+      for (;;) { // Get
+        res = tb_getc();
+        if (res == -1)
+          break;
+        if (res <= 0)
+          return -1; // Break Found
+                     // else: ignore other than break
+      }
+    }
+  }
+  return 0; // OK, Continue
+}
+
+
 //---- Sensor CMDs End ------------
 // ===Sensor Part END ===
 

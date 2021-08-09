@@ -17,6 +17,11 @@
 * - Sensor-SCL(Green): I_SCL
 * - Sensor-SDA(Yellow): I_SDA
 * - Sensor-GND(Brown): I_GND
+*
+* Errors:
+* -101 No Reply1
+* -102 No Reply2
+*
 ***************************************************/
 
 #include <stdbool.h>
@@ -41,6 +46,22 @@
 #error "Wrong DEVICE_TYP, select other Source in AplicSensor"
 #endif
 
+//--- Local Paramaters for KKD Start
+typedef struct {
+  float p_min;  // here 0.0 BAR
+  float p_max;  // here 2.0 BAR
+} KKD_KOEFFS;
+
+typedef struct {
+  int16_t err; // 0: OK (=res from fkts)
+  float pressure;
+  float temperature;
+} KKD_VALS;
+
+KKD_KOEFFS kkd_koeffs;
+KKD_VALS kkd_vals;
+//--- Local Paramaters for KKD End
+
 // --------- Locals -------------
 /* Parameters can be used e.g. as Offset/Multi per Channel etc...
   // Note: this is GP/TT Standard; First MULTI, then sub OFFSET!
@@ -54,16 +75,67 @@ typedef struct {
 // Test Setup for Default Koeffs (M O M O)
 PARAM param = {{1.0, 0.0, 1.0, 0.0}};
 
+//--- Local Functions for KKD Start
+// Important: KKD has internal PullUps and max. FRQ is 100kHz
+#define KKD_ADDR 81 // Addr-Raum 7-Bit
+
+int32_t kkd_read_reg(uint8_t reg, int32_t *pval) {
+  int32_t err_code, res;
+  i2c_uni_txBuffer[0] = 0x40 + reg;
+  err_code = i2c_readwrite_blk_wt(KKD_ADDR, 1, 3, 0); // 3 Bytes lesen, 0ms Warten
+  if (!err_code) {
+    // Erg. 24 Bit LE int24_t
+    res = (i2c_uni_rxBuffer[2]) + (i2c_uni_rxBuffer[1] << 8) + (i2c_uni_rxBuffer[0] << 16);
+    if (res & (1 << 23))
+      res -= (1 << 24); // negative Werte
+    *pval = res;
+  }
+  return err_code;
+}
+
+// Returns 0:OK or <0:Error
+#define ZP 13107 // from AppNote
+#define EP 117965
+int16_t kkd_values_get(void) {
+  int32_t val;
+  int16_t res;
+  float fval;
+
+  ltx_i2c_init();
+
+  if (!kkd_read_reg(0, &val)) { // Temp
+    fval = (float)val / 4096.0;        // Convert to oC
+    kkd_vals.temperature = fval;
+  } else
+    res = -101; // No Reply
+  
+  if (!res && !kkd_read_reg(1, &val)) { // Pressure 
+    fval = ((float)val - ZP) / (EP-ZP) * (kkd_koeffs.p_max - kkd_koeffs.p_min);
+    kkd_vals.pressure = fval;
+  } else
+    res = -102; // No Reply2
+
+  ltx_i2c_uninit(false);       // KKD has int. PU
+  kkd_vals.err = res;
+  return res;
+}
+//--- Local Functions for KKD End
+
 //------------------- Implementation -----------
 void sensor_init(void) {
   // Id has fixed structure, max. 30+'\0'
   // all cccccccc.8 mmmmmm.6 vvv.3 xx..xx.[0-13]
   //  13 JoEmbedd   Testse   OSX   (MAC.l)
   // Set SNO to Low Mac, so same Name as BLE Advertising
-  sprintf(sensor_id, "CerKKD18_0300_OSX%08X", mac_addr_l);
+  sprintf(sensor_id, "TT_K18_A_0300_OSX%08X", mac_addr_l);
+  // TT:'TerraTransfer', K18:'Pewatron KKD18 Ceramic', A:'Version 2 Bar Abs'
 
   // Try to read Parameters
   intpar_mem_read(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
+
+  // KKD18 Fixed Koeffs for "Typ A":
+  kkd_koeffs.p_min=0.0; 
+  kkd_koeffs.p_max=2.0;
 }
 
 bool sensor_valio_input(char cmd, uint8_t carg) {
@@ -86,29 +158,11 @@ bool sensor_valio_input(char cmd, uint8_t carg) {
   return true;
 }
 
-// Important: KKD has internal PullUps and max. FRQ is 100kHz
-#define KKD_ADDR 81 // Addr-Raum 7-Bit
-#define KKD_BUS 7
-int32_t kkd_read_reg(uint8_t reg, int32_t *pval) {
-  int32_t err_code, res;
-  i2c_uni_txBuffer[0] = 0x40 + reg;
-  err_code = i2c_readwrite_blk_wt(KKD_ADDR, 1, 3, 0); // 3 Bytes lesen, 0ms Warten
-  if (!err_code) {
-    // Erg. 24 Bit LE int24_t
-    res = (i2c_uni_rxBuffer[2]) + (i2c_uni_rxBuffer[1] << 8) + (i2c_uni_rxBuffer[0] << 16);
-    if (res & (1 << 23))
-      res -= (1 << 24); // negative Werte
-    *pval = res;
-  }
-  return err_code;
-}
-
 //The KKD has a WarmUp Time of 2 seconds!!!
+#define WAIT_MS 2000
 int16_t sensor_valio_measure(uint8_t isrc) {
   //---- 'M': While waiting: scan SDI for <BREAK> ----
-  int16_t wt = 2000;
   int16_t res;
-  int32_t val;
   float fval;
 
   // Supply Sensor with Power
@@ -121,51 +175,37 @@ int16_t sensor_valio_measure(uint8_t isrc) {
       NRF_GPIO_PIN_NOSENSE);
   nrf_gpio_pin_set(IX_X0);
 
-  while (wt > 0) {
-    if (wt & 1)
-      tb_board_led_on(0);
-    tb_delay_ms(25); // Measure... (faster than time above)
-    tb_board_led_off(0);
-    wt -= 25;
-
-    if (isrc == SRC_SDI) {
-      for (;;) { // Get
-        res = tb_getc();
-        if (res == -1)
-          break;
-        if (res <= 0){
-          nrf_gpio_cfg_default(IX_X0); // Power OFF
-          return -1;                     // Break Found
-                                       // else: ignore other than break
-        }
-      }
-    }
+  res = sensor_wait_break(isrc, WAIT_MS);
+  if (res){
+    nrf_gpio_cfg_default(IX_X0); // Power OFF
+    return res;
   }
   // --- 'm' Wait end
 
   // Read Data from Sensor
-  ltx_i2c_init();
+  res = kkd_values_get();
+  nrf_gpio_cfg_default(IX_X0); // Power OFF
 
-  sdi_valio.channel_val[0].punit = "oC";
-  if (!kkd_read_reg(0, &val)) { // Temp
-    fval = (float)val / 4096.0;        // Convert to oC
-    fval *= param.koeff[0];     // Def. 1.0
-    fval -= param.koeff[1];     // Def. 0.0
-  } else
-    fval = -99.9; // Error..
-  snprintf(sdi_valio.channel_val[0].txt, 11, "%+.2f", fval);
-
-  sdi_valio.channel_val[1].punit = "mBar";
-  if (!kkd_read_reg(1, &val)) { // Pressure 104.8576 Counts are equal to 2 mBar
-    fval = (float)val / 104.8576 * 2;
+  // Prepare Output
+  sdi_valio.channel_val[0].punit = "Bar";
+  if (!res) {
+    fval = kkd_vals.pressure;
     fval *= param.koeff[2]; // Def. 1.0
     fval -= param.koeff[3]; // Def. 0.0
-  } else
-    fval = -999.9; // Error..
-  snprintf(sdi_valio.channel_val[1].txt, 11, "%+.2f", fval);
+  } else {
+    fval = -1000 + res; // Error..
+  }
+  snprintf(sdi_valio.channel_val[0].txt, 11, "%+.5f", fval);
 
-  ltx_i2c_uninit(false);       // KKD has int. PU
-  nrf_gpio_cfg_default(IX_X0); // Power OFF
+  sdi_valio.channel_val[1].punit = "oC";
+  if (!res) {
+    fval = kkd_vals.temperature;
+    fval *= param.koeff[0]; // Def. 1.0
+    fval -= param.koeff[1]; // Def. 0.0
+  } else {
+    fval = res; // Error..
+  }
+  snprintf(sdi_valio.channel_val[1].txt, 11, "%+.2f", fval);
 
   if (sdi_valio.measure_arg) {
     snprintf(sdi_valio.channel_val[2].txt, 11, "%+.2f", get_vbat_aio()); // Only 2 digits
@@ -200,6 +240,8 @@ void sensor_valio_xcmd(uint8_t isrc, char *pc) {
     intpar_mem_write(ID_INTMEM_SDIADR, 1, (uint8_t *)&my_sdi_adr);
     intpar_mem_write(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
     sprintf(outrs_buf, "%c", my_sdi_adr); // Standard Reply
+  } else if (!strcmp(pc, "Sensor!")) {                                                // Identify Senor
+    sprintf(outrs_buf, "%cKKD18_A,P=%.1f:%.1f!", my_sdi_adr, kkd_koeffs.p_min, kkd_koeffs.p_max); // Standard Reply
   }                                       // else
 }
 
