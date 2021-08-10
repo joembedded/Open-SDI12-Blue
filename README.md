@@ -35,6 +35,10 @@ Real World Project with KKD-18:
 
 !['ANNA_SDI'](./Img/kkd18_300.jpg)
 
+Real World Project with Barometric Pressure Sensor MS5607:
+
+!['ANNA_SDI'](./Img/baro_320.jpg)
+
 ## Companion Project(s): ##
 !['SDI12Term'](./Img/sdi12term_kl.jpg)
 
