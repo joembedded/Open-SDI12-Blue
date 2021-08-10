@@ -23,6 +23,7 @@
 #include "osx_pins.h"
 #include "saadc.h"
 #include "tb_tools.h"
+#include "bootinfo.h"
 
 #if DEBUG
  #include "i2c.h"
@@ -263,9 +264,17 @@ int16_t sdi_process_cmd(uint8_t isrc, char *const ps_ibuf) {
         sdi_send_reply_mux(isrc); // send SDI_OBUF
         tb_delay_ms(100);
         tb_system_reset();        // Reset...
+      }else if (!strcmp(ps_ibuf+2, "Device!")){
+        pc=outrs_buf;
+        pc+=sprintf(pc, "%cM:%08X%08X,T:%u,V%u.%u", 
+          my_sdi_adr, mac_addr_h, mac_addr_l,
+          DEVICE_TYP,DEVICE_FW_VERSION/10,DEVICE_FW_VERSION%10);
+        if(get_pin()) { // PIN found => Add it
+          sprintf(pc,",P:%u!",get_pin());
+        }else strcat(pc,"!"); // No Pin
+
       } // else 
       sensor_valio_xcmd(isrc,ps_ibuf+2);
-
       break;  
 
       // default: No Reply!

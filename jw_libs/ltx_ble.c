@@ -899,7 +899,7 @@ static void parse_and_reply_bleterm(void) {
           ;;
         }else{
           val = get_pin();
-          if(val!=0xFFFFFFFF) { // PIN found => Check
+          if(val) { // >0 Bootloader present => PIN found => Check
             if(val!=strtoul(pc, 0, 0)){  // Test PIN
               strcpy(parse_obuf, "~E");  // Pin ERROR
               break;

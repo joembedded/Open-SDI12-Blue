@@ -48,7 +48,7 @@
 
 //--- Local Paramaters for KKD Start
 typedef struct {
-  float p_min;  // here 0.0 BAR
+  float p_min;  // here 0.0 BAR // unused
   float p_max;  // here 2.0 BAR
 } KKD_KOEFFS;
 
@@ -58,8 +58,8 @@ typedef struct {
   float temperature;
 } KKD_VALS;
 
-KKD_KOEFFS kkd_koeffs;
-KKD_VALS kkd_vals;
+static KKD_KOEFFS kkd_koeffs;
+static KKD_VALS kkd_vals;
 //--- Local Paramaters for KKD End
 
 // --------- Locals -------------
@@ -110,7 +110,8 @@ int16_t kkd_values_get(void) {
     res = -101; // No Reply
   
   if (!res && !kkd_read_reg(1, &val)) { // Pressure 
-    fval = ((float)val - ZP) / (EP-ZP) * (kkd_koeffs.p_max - kkd_koeffs.p_min);
+    //fval = ((float)val - ZP) / (EP-ZP) * (kkd_koeffs.p_max - kkd_koeffs.p_min) + kkd_koeffs.p_min; // ???
+    fval = ((float)val - ZP) / (EP-ZP) * (kkd_koeffs.p_max); //  - kkd_koeffs.p_min unused
     kkd_vals.pressure = fval;
   } else
     res = -102; // No Reply2
@@ -134,7 +135,7 @@ void sensor_init(void) {
   intpar_mem_read(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
 
   // KKD18 Fixed Koeffs for "Typ A":
-  kkd_koeffs.p_min=0.0; 
+  kkd_koeffs.p_min=0.0;  // unused
   kkd_koeffs.p_max=2.0;
 }
 
@@ -241,7 +242,7 @@ void sensor_valio_xcmd(uint8_t isrc, char *pc) {
     intpar_mem_write(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
     sprintf(outrs_buf, "%c", my_sdi_adr); // Standard Reply
   } else if (!strcmp(pc, "Sensor!")) {                                                // Identify Senor
-    sprintf(outrs_buf, "%cKKD18_A,P=%.1f:%.1f!", my_sdi_adr, kkd_koeffs.p_min, kkd_koeffs.p_max); // Standard Reply
+    sprintf(outrs_buf, "%cKKD18_A,P=%.1f;%.1f!", my_sdi_adr, kkd_koeffs.p_min, kkd_koeffs.p_max); // Standard Reply
   }                                       // else
 }
 

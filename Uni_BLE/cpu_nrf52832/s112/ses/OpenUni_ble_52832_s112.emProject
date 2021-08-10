@@ -141,8 +141,9 @@
         <configuration Name="Release" build_exclude_from_build="Yes" />
       </file>
       <file file_name="../../../../sensor_types/0310_Keller_LD/0310_Keller_LD.c">
-        <configuration Name="Debug" build_exclude_from_build="No" />
+        <configuration Name="Debug" build_exclude_from_build="Yes" />
       </file>
+      <file file_name="../../../../sensor_types/0320_Baro_MS5607/0320_Baro_MS5607.c" />
     </folder>
   </project>
   <configuration

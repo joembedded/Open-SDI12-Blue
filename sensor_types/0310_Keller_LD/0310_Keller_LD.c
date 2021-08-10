@@ -11,8 +11,8 @@
 *
 * Connect: 
 * - Sensor-Supply(White): I_VCC (Sensor needs <1uA I_q)
-* - Sensor-SCL(Green): I_SCL
-* - Sensor-SDA(Yellow): I_SDA
+* - Sensor-SCL(Green): I_SCL with 10k-Pullup to I_VCC(!)
+* - Sensor-SDA(Yellow): I_SDA with 10k-Pullup to I_VCC(!)
 * - Sensor-GND(Brown): I_GND
 *
 * Important: LD Sensor can not use repeated 
@@ -29,6 +29,7 @@
 * -103 No Reply3/Timout
 * -104 Still Busy?
 * -105 Memory Error
+* -106 No Reply4/Koeffs
 *
 ***************************************************/
 
@@ -76,7 +77,7 @@ typedef union {
 
 typedef struct {
   bool init_flag;
-  uint8_t mode; // 0:PR 1:PA 2:PAA (3:Aux)
+  uint8_t mode; // 0:PR 1:PA 2:PAA (3:Aux >3:???)
   float p_min;  // From Sensor (P 16384)
   float p_max;  // (P 49152)
   float delta;  // Calculated
@@ -89,8 +90,8 @@ typedef struct {
   float temperature;
 } LD_VALS;
 
-LD_KOEFFS ld_koeffs;
-LD_VALS ld_vals;
+static LD_KOEFFS ld_koeffs;
+static LD_VALS ld_vals;
 //--- Local Paramaters for LD End
 
 //--- Local Functions for LD Start
@@ -134,6 +135,10 @@ int16_t ld_getkoeffs(void) {
   uint16_t mode16;
   int16_t res;
   ld_koeffs.init_flag = false;
+  ld_koeffs.p_min=-106; // Unknown
+  ld_koeffs.p_max=-106; // Unknown
+  ld_koeffs.mode=255; // Not Set
+
   res = ld_koeff16_get(0x12, (uint8_t *)&mode16); // Mode
   if (res)
     return res;
@@ -152,7 +157,7 @@ int16_t ld_getkoeffs(void) {
 }
 
 #define MODE_POLL     // if defined: (slightly) faster, but more noise on signal lines
-#define WAIT_MS_MAX 7 // Datasheet:4 msec, own measures: ca. 5 msec
+#define WAIT_MS_MAX 8 // Datasheet:8 msec, own measures: ca. 5 msec
 // Returns 0:OK or <0:Error
 int16_t ld_values_get(void) {
   int32_t res;
@@ -227,6 +232,12 @@ void sensor_init(void) {
 
   // Try to read Parameters
   intpar_mem_read(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
+
+  // (try) to Get MinMax etc.
+  ltx_i2c_init();
+  ld_getkoeffs();
+  ltx_i2c_uninit(false);
+
 }
 
 bool sensor_valio_input(char cmd, uint8_t carg) {
@@ -320,20 +331,21 @@ void sensor_valio_xcmd(uint8_t isrc, char *pc) {
     intpar_mem_write(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
     sprintf(outrs_buf, "%c", my_sdi_adr);                                             // Standard Reply
   } else if (!strcmp(pc, "Sensor!")) {                                                // Identify Senor
-    sprintf(outrs_buf, "%cLD,P=%.1f:%.1f,", my_sdi_adr, ld_koeffs.p_min, ld_koeffs.p_max); // Standard Reply
+
+    sprintf(outrs_buf, "%cLD,P:%.1f;%.1f", my_sdi_adr, ld_koeffs.p_min, ld_koeffs.p_max); // Standard Reply
     switch (ld_koeffs.mode) {
     case 0:
-      strcat(outrs_buf, "PR!");
+      strcat(outrs_buf, ",PR!");
       break;
     case 1:
-      strcat(outrs_buf, "PA!");
+      strcat(outrs_buf, ",PA!");
       break;
     case 2:
-      strcat(outrs_buf, "PAA!");
+      strcat(outrs_buf, ",PAA!");
       break;
-    case 3:
-      strcat(outrs_buf, "Aux!");
-      break;
+    // All other: Unknown
+    default:
+        strcat(outrs_buf, "!");
     }
   } // else
 }
