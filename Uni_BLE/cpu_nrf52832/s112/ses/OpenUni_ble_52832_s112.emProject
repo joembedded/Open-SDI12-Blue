@@ -143,7 +143,10 @@
       <file file_name="../../../../sensor_types/0310_Keller_LD/0310_Keller_LD.c">
         <configuration Name="Debug" build_exclude_from_build="Yes" />
       </file>
-      <file file_name="../../../../sensor_types/0320_Baro_MS5607/0320_Baro_MS5607.c" />
+      <file file_name="../../../../sensor_types/0320_Baro_MS5607/0320_Baro_MS5607.c">
+        <configuration Name="Debug" build_exclude_from_build="Yes" />
+      </file>
+      <file file_name="../../../../sensor_types/0330_FrqCounter/0330_FrqCounter.c" />
     </folder>
   </project>
   <configuration

@@ -339,14 +339,14 @@ void type_cmdprint_line(uint8_t isrc, char *pc) {
 #if DEBUG
 // === DEBUG START ===
 //====== TEST COMMANDS FOR NEW SENSOR START_A ========
-//====== TEST COMMANDS FOR NEW SENSOR END_A ========
 
+//====== TEST COMMANDS FOR NEW SENSOR END_A ========
 
 // Additional Test-CMDs via TB_UART
 // IMPORTANT: only SMALL capitals for User-CMDs!
 bool debug_tb_cmdline(uint8_t *pc, uint32_t val){
   switch (*pc) {
-  case 's':
+  case 'S': // Often useful
     ltx_i2c_scan((bool)val, false); // 0:W,1:R  NoPU */
     break;
   //====== TEST COMMANDS FOR NEW SENSOR START_S ========

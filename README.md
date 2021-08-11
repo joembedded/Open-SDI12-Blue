@@ -15,6 +15,7 @@ Current State:
 - Ceramic Pressure Sensor KKD18 (Device Type 300): stable and tested
 - Piezo Pressure Sensor KELLER LD (Device Type 310): stable and tested
 - Barometric Pressure Sensor MS5607 (Device Type 320): stable and tested
+- Frequency and Event Counter (up to 1kHz) (Device Type 330): stable and tested
 
 todo: 
 - Docu
