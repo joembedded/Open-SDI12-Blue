@@ -39,6 +39,7 @@ extern char my_sdi_adr;
 #define MAX_OUTBUF SDI_OBUFS
 extern char outrs_buf[MAX_OUTBUF];
 
+extern bool type_irq_wake_flag;
 
 #define VMON_CHANNEL            NRF_SAADC_INPUT_AIN7
 #define HK_VBAT_KOEFF           0.00346 // Div: 4M7-1M6 (0 - 14.2V)

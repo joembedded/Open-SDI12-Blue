@@ -35,6 +35,8 @@
 #include "intmem.h"
 
 // ---Globals---
+bool type_irq_wake_flag=false;  // Flag indicates Wake by IRQ, set extern
+
 char my_sdi_adr = '0'; // Factory Default
 char outrs_buf[MAX_OUTBUF];
 SDI_VALIO sdi_valio;
@@ -320,7 +322,11 @@ bool type_service(void) {
     tb_putc(']'); // Signal SDI12 Activity
     return true;  // No Periodic Service
   }
-  return false; // Periodic Service
+  // Flag indicates IRQ in type implementation
+  if(type_irq_wake_flag){ // If set: Skip PERIOD Serice once
+      type_irq_wake_flag=false;
+      return true;  // No Periodic Service
+  }else  return false; // Periodic Service
 }
 
 void type_cmdprint_line(uint8_t isrc, char *pc) {

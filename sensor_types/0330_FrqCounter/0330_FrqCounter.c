@@ -74,16 +74,21 @@ typedef struct {
   float frequency; // Frequency of the last valid CNT_2_FRQ_MS period
 } CNT_VALS;
 
-static CNT_VALS cnt_vals = {0, -101.0}; // Err
+static CNT_VALS cnt_vals;
 //--- Local Paramaters for CNT End
 
 //--- Local Functions for CNT Start
 // - Here Counter and Frequency on IX_SCL -
 #define SCL_FEEDBACK            // If defined: Connect Piezo or Oszi to IX_SCL
-#define XCOUNT_ROLLOVER 1000000 // Roll-Over Value
-volatile uint32_t x2l_cnt;      // Read Only!
+#define XCOUNT_ROLLOVER 1000000 // Roll-Over Value (< 31 bit!)
+#define CNT_2_FRQ_MS 8000
+
+volatile int32_t x2l_cnt=0;      // Read Only!
+volatile int32_t xt_delta_cnt=0x80000000; // 
+
+/* Info: IRQ will wake MAIN 
 /*irq*/ static void x2l_irq_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action) {
-  uint32_t h;
+  int32_t h;
   h = x2l_cnt;
   if (++h == XCOUNT_ROLLOVER)
     h = 0;
@@ -94,26 +99,17 @@ volatile uint32_t x2l_cnt;      // Read Only!
   else
     nrf_gpio_pin_clear(IX_SCL);
 #endif
+  type_irq_wake_flag=true;  // Skip PERIOD Serice once
 }
-
-static uint32_t xt_t0, xt_t1;
-static uint32_t xt_x2l0, xt_x2l1;
-
-#define CNT_2_FRQ_MS 8000
+ 
 static void cnt_timer_handler(void *p_context) {
-  int32_t delta_cnt;
-  xt_t1 = tb_get_ticks();
-  xt_x2l1 = x2l_cnt;
+  // Shift Field for Counter
+  static int32_t h_x2l0=0; // Private
+  int32_t h_x2l1;
 
-  delta_cnt = xt_x2l1 - xt_x2l0;
-  if (delta_cnt < 0)
-    delta_cnt += XCOUNT_ROLLOVER;
-
-  cnt_vals.frequency = (float)delta_cnt / (float)tb_deltaticks_to_ms(xt_t0, xt_t1) * 1000.0;
-
-  // Shift to old
-  xt_t0 = xt_t1;
-  xt_x2l0 = xt_x2l1;
+  h_x2l1=x2l_cnt;
+  xt_delta_cnt = (h_x2l1 - h_x2l0);
+  h_x2l0 = h_x2l1;
 }
 
 APP_TIMER_DEF(cnt_timer_id);
@@ -184,7 +180,17 @@ void messure_frequency(uint32_t v){
 */
 
 int16_t cnt_vals_get(void) {
+  int32_t delta_cnt;
   cnt_vals.counter = x2l_cnt;
+
+  if(xt_delta_cnt!=0x80000000){
+    delta_cnt=xt_delta_cnt;
+    if(delta_cnt<0) delta_cnt+=XCOUNT_ROLLOVER;
+    // Timer runs with fixeed FRQ
+    cnt_vals.frequency = (float)delta_cnt/(float)(CNT_2_FRQ_MS  / 1000.0);
+
+  }else cnt_vals.frequency=-101;  // INVALID
+
   return 0;
 }
 //--- Local Functions for CNT End
@@ -204,9 +210,6 @@ void sensor_init(void) {
 
   // Init driver
   pint_sda_on();
-
-  xt_t0 = tb_get_ticks(); // Set start point for FRQ
-  xt_x2l0 = x2l_cnt;
   simple_cnt_timer();
 }
 
@@ -256,10 +259,12 @@ int16_t sensor_valio_measure(uint8_t isrc) {
   sdi_valio.channel_val[1].punit = "Hz";
   fval = cnt_vals.frequency;
   if (fval >= 0) {
+
+
     fval *= param.koeff[0]; // Def. 1.0
     fval -= param.koeff[1]; // Def. 0.0
   }                         // else Error..
-  snprintf(sdi_valio.channel_val[1].txt, 11, "%+.2f", fval);
+  snprintf(sdi_valio.channel_val[1].txt, 11, "%+.1f", fval);
 
   if (sdi_valio.measure_arg) {
     snprintf(sdi_valio.channel_val[2].txt, 11, "%+.2f", get_vbat_aio()); // Only 2 digits

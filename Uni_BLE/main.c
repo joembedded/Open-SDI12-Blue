@@ -290,26 +290,23 @@ void uart_cmdline(void) {
           break;
       //==== Memory-Zeugs End  ====
 
-      // === Div BLE: Advertising Name, Conn. Params, RSSI, .. in OSX Dev
+      // === Div Info
         case 'N':
             tb_printf("Novo: %x %x %x %x\n", _tb_novo[0], _tb_novo[1], _tb_novo[2], _tb_novo[3]);
-            break;
-        case 'B':
             tb_printf("Button: %u\n", tb_board_button_state(0));
+            tb_printf("Idle: %u\n", dbg_idle_cnt);
+            // AD(val avg.)
+            if(val<1) val=1; // val Averages (8 is more than enough)
+            saadc_init();
+            saadc_setup(0);  
+            fval = saadc_get_vbat(true, val); 
+            tb_printf("HK-BAT(%d): %f V\n", val,fval);
+            saadc_uninit();
             break;
         case '!':
             if (val) { // An P0.0 normalerweise das Quarz
                 tb_dbg_pinview(val);
             }
-            break;
-
-        case 'V': // Volt AD with averages
-              if(val<1) val=1; // val Averages (8 is more than enough)
-              saadc_init();
-              saadc_setup(0);  
-              fval = saadc_get_vbat(true, val); 
-              tb_printf("HK-BAT(%d): %f V\n", val,fval);
-              saadc_uninit();
             break;
 
 #endif
@@ -399,16 +396,21 @@ void main(void) {
     reset_reason_bits = (NRF_POWER->RESETREAS);
     (NRF_POWER->RESETREAS) = 0xFFFFFFFF; // Clear with '1'
 
+
     power_management_init();
     ble_stack_init(); // Startet Timer! Zuerst starten
+#ifdef HAS_EXTERNAL32KHZ_CLK // Init AFTER SD! 
+    NRF_CLOCK->LFCLKSRC |= (1<<16)|(1<<17);
+#endif
     jw_drv_init();    // Systemtreiber
 
+    
     // Vor BLE/Advertising evtl. HW aktivieren
     osx_system_init();
 
 #ifdef ENABLE_BLE
 #ifdef DEBUG
-    tb_printf("***** BLUETOOTH AN ****\n");
+    tb_printf("***** BLUETOOTH ON ****\n");
     tb_printf("Advertising Name: '%s'\n", ble_device_name);
 #endif
     
@@ -454,16 +456,15 @@ void main(void) {
         // periodische Aufgaben?
         GUARD(GID); // GUARD: Save THIS line as last visited line in Module GID
 
-#ifdef ENABLE_BLE
-        // --- BLE Data Input Scanner (nur wenn connected, aber max. Prio) ---
-        if (ble_connected_flag == true) {
-            GUARD(GID); // GUARD: Save THIS line as last visited line in Module GID
-            ble_periodic_connected_service();
-            ledflash_flag = 1;  // Connected: in jedem Fall Blinken
-        }
-#endif
-
         if(!type_service()){
+#ifdef ENABLE_BLE
+          // --- BLE Data Input Scanner (nur wenn connected, aber max. Prio) ---
+          if (ble_connected_flag == true) {
+              GUARD(GID); // GUARD: Save THIS line as last visited line in Module GID
+              ble_periodic_connected_service();
+              ledflash_flag = 1;  // Connected: in jedem Fall Blinken
+          }
+#endif
           periodic_secs();
 
           // ---- UART-Service (or UART-ERROR) Wichtig zu pollen, sonst evtl. 500uA Iq---
@@ -484,6 +485,7 @@ void main(void) {
 #if DEBUG
         dbg_idle_cnt++;
 #endif
+
         idle_state_handle();
     }
 }
