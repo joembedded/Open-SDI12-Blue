@@ -399,6 +399,7 @@ void main(void) {
 
     power_management_init();
     ble_stack_init(); // Startet Timer! Zuerst starten
+
 #ifdef HAS_EXTERNAL32KHZ_CLK // Init AFTER SD! 
     NRF_CLOCK->LFCLKSRC |= (1<<16)|(1<<17);
 #endif
