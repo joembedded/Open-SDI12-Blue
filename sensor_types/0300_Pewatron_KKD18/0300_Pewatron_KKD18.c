@@ -106,6 +106,7 @@ int16_t kkd_values_get(void) {
   if (!kkd_read_reg(0, &val)) { // Temp
     fval = (float)val / 4096.0;        // Convert to oC
     kkd_vals.temperature = fval;
+    res=0;
   } else
     res = -101; // No Reply
   
