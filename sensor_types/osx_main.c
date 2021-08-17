@@ -27,6 +27,7 @@
 
 #if DEBUG
  #include "i2c.h"
+ #include "nrfx_spim.h"
 #endif
 
 #ifdef ENABLE_BLE
@@ -346,6 +347,138 @@ void type_cmdprint_line(uint8_t isrc, char *pc) {
 // === DEBUG START ===
 //====== TEST COMMANDS FOR NEW SENSOR START_A ========
 
+// ADS1220 4-Channel, 2-kSPS, 24-Bit ADC with Integrated PGA and Reference
+#define FPIN_SCK_PIN  IX_SCL   //  30 Clock
+#define FPIN_MOSI_PIN IX_X2   //  25 AD:DIN
+#define FPIN_MISO_PIN IX_SDA   //  29 AD:Dout
+#define FPIN_DRDY_PIN IX_X1   //  27 AD:DRdy
+#define FPIN_PWR_PIN IX_X0   //   28 AD:Vcc
+
+#define SPI_INSTANCE  1      // 0:I2C, 1:SPI, 2/3:SPI-Flash CPU 32/40
+static const nrfx_spim_t spi = NRFX_SPIM_INSTANCE(SPI_INSTANCE); 
+static bool spi_init_flag=false;
+static nrfx_spim_config_t spi_config = NRFX_SPIM_DEFAULT_CONFIG;
+
+// 2 Buffers for AD-Data
+#define MAX_SPI_IO 8
+static uint8_t spi_out[MAX_SPI_IO];
+static uint8_t spi_in[MAX_SPI_IO];
+
+static int16_t ad_spi_init(void){
+    if(spi_init_flag==true) return 0;  // Already init
+
+    spi_config.frequency      = NRF_SPIM_FREQ_1M; // OK for AD1220
+    spi_config.miso_pin       = FPIN_MISO_PIN;
+    spi_config.mosi_pin       = FPIN_MOSI_PIN;
+    spi_config.sck_pin        = FPIN_SCK_PIN;
+    // 'Speical:'
+    spi_config.mode =   NRF_SPIM_MODE_1;       //CPOL = 0 (Active High); CPHA = TRAILING (1)
+    spi_config.orc = 0x0; // Default TX-Zeichen
+    APP_ERROR_CHECK(nrfx_spim_init(&spi, &spi_config, NULL, NULL)); // Use Blocking transfer
+
+    nrf_gpio_cfg_input(FPIN_DRDY_PIN, GPIO_PIN_CNF_PULL_Pullup);  
+    // Supply Sensor with Power
+    nrf_gpio_cfg(FPIN_PWR_PIN,NRF_GPIO_PIN_DIR_OUTPUT,NRF_GPIO_PIN_INPUT_DISCONNECT,NRF_GPIO_PIN_NOPULL,
+      NRF_GPIO_PIN_S0H1 /*High Out*/, NRF_GPIO_PIN_NOSENSE);
+    nrf_gpio_pin_set(FPIN_PWR_PIN);
+    tb_delay_ms(50);  // Wait until stable
+    spi_init_flag=true;
+    return 0;
+}
+static void ad_spi_close(void){
+    if(spi_init_flag==false) return;  // Already uninit
+    nrfx_spim_uninit(&spi);
+    nrf_gpio_cfg_default(FPIN_PWR_PIN); // Power OFF
+    spi_init_flag=false;
+}
+
+static void ad_spi_read(uint16_t len){ 
+    nrfx_spim_xfer_desc_t xfer_desc = NRFX_SPIM_XFER_TRX(NULL, 0, spi_in, len); 
+    APP_ERROR_CHECK(nrfx_spim_xfer(&spi, &xfer_desc, 0));
+}
+static void ad_spi_write(uint16_t len){
+    nrfx_spim_xfer_desc_t xfer_desc = NRFX_SPIM_XFER_TRX(spi_out, len, NULL, 0); 
+    APP_ERROR_CHECK(nrfx_spim_xfer(&spi, &xfer_desc, 0));
+}
+
+static void ad_reset(void){
+  spi_out[0]=0x06;  // first RESET recommended for ADS1220 after PowerUP
+  ad_spi_write(1);
+  tb_delay_ms(1);
+}
+/********************************************************
+* messen_ad24(): Eine Messung ausloesen. Wenn Param
+* ungleich 255: Register0 setzen (mit GAIN und PGA).
+* soviele Werte Addieren, liefert SUMME der M Werte!
+********************************************************/
+static int32_t ad24_messen(uint8_t reg0, uint16_t m){
+	int32_t res;
+	int32_t sum;
+        uint16_t dcnt=0;
+	// START
+	if(reg0!=255){
+          spi_out[0]=0x40;  // WREG ab 0, 1 Bytes folgen
+          spi_out[1]=reg0;  
+          ad_spi_write(2);
+	}
+	sum=0;
+        spi_out[0]=0x08;  
+        ad_spi_write(1); // START CONTI=1  Einmal Starten
+	while(m--){
+		while(nrf_gpio_pin_read(FPIN_DRDY_PIN)) {
+                  tb_delay_ms(1);	// Warten bis Messwert
+                  dcnt++;
+                  if(dcnt==200) return 0x80000000;   // Timeout 200msec, most neg. Number!
+                }
+                ad_spi_read(3);
+                res=spi_in[2]+(spi_in[1]<<8)+(spi_in[0]<<16);
+                if(spi_in[0]&128) res|=0xFF000000;  // Ext. Neg. Values-Bit
+
+		sum+=res;
+	}
+	return sum;
+}
+
+/*************************************************************
+* setup AD ADS1220
+* Setup fuer 2.00k Ref, PT100 max. 250 Grad: PGA8 AN IDAC1mA
+* Init mit AIN zusammen (0-Punkt). Timeout des SPI: ca. 50 msec
+*************************************************************/
+void ad24_setup_pt(void){
+        spi_out[0]=0x43;  // 4 regs follow:
+        spi_out[1]=0xE6;  // 0: AIN auf Ref/2 GAIN1 PGA_BYPASS
+        spi_out[2]=0x24;  // 1: 45SPS NORMAL TS_DISA CONTI=1  BURNOUT_DIS (20 SPS sind zu langsam)
+        spi_out[3]=0x56;  // 2: EXT-REF FIR_5060 SW_OPN IDAC IDAC 1mA
+        spi_out[4]=0x80;  // 3: IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
+        ad_spi_write(5);
+}
+
+#define ASHIFT 3
+#define AAVG	8
+/*****************************************************************
+* ad_messen_pt100()
+*****************************************************************/
+int32_t ad_messen_pt100(void){
+	int32_t offset,wert;
+	offset=ad24_messen(255,AAVG);
+	wert=(ad24_messen(0x06,AAVG)-offset)>>ASHIFT; // Ain0/1 Gain8 PGA
+	return wert;
+}
+
+int32_t ad_itemp(void){
+  int32_t res;
+  spi_out[0]=0x43;  // 4 regs follow:
+  spi_out[1]=0xE0;  // 0: AIN auf Ref/2 GAIN1 PGA_BYPASS
+  spi_out[2]=0x22;  // 1: 45SPS NORMAL TS_ENA CONTI=0  BURNOUT_DIS  (20 SPS sind zu langsam)
+  spi_out[3]=0x50;  // 2: EXT-REF FIR_5060 SW_OPN IDAC IDAC OFF
+  spi_out[4]=0x00;  // 3: IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
+  ad_spi_write(5);
+
+  // ftemp=(res/1024)*0.03125; bzw. ftemp=res/32768.0
+  res = ad24_messen(255,1); // 1 Messung reicht
+  return res;
+}
+
 //====== TEST COMMANDS FOR NEW SENSOR END_A ========
 
 // Additional Test-CMDs via TB_UART
@@ -356,7 +489,27 @@ bool debug_tb_cmdline(uint8_t *pc, uint32_t val){
     ltx_i2c_scan((bool)val, false); // 0:W,1:R  NoPU */
     break;
   //====== TEST COMMANDS FOR NEW SENSOR START_S ========
+case 'a':
+  {
+  int32_t res;
+  ad_spi_init();
+  ad_reset();
 
+  //ad24_setup_pt();
+  //tb_delay_ms(100);
+  //res=ad_messen_pt100();
+  //tb_printf("PT-RES: %d  %x\n",res,res);
+
+  while(1){
+    res=ad_itemp();
+    tb_printf("iTemp-RES: %d  %x  %f\n",res,res, ((float)res)/32768.0);
+    if(tb_getc()!=-1) break;
+    tb_delay_ms(500);
+  }
+
+  ad_spi_close();
+  }
+  break;
   //====== TEST COMMANDS FOR NEW SENSOR END_S ========
   default:
     return false;

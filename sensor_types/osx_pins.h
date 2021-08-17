@@ -28,6 +28,6 @@
 
 #define IX_X0  NRF_GPIO_PIN_MAP(0, 28) // opt. A
 #define IX_X1  NRF_GPIO_PIN_MAP(0, 27) 
-#define IX_X2  NRF_GPIO_PIN_MAP(0, 26) 
+#define IX_X2  NRF_GPIO_PIN_MAP(0, 25) 
 
 //***
