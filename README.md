@@ -16,6 +16,7 @@ Current State:
 - Piezo Pressure Sensor KELLER LD (Device Type 310): stable and tested
 - Barometric Pressure Sensor MS5607 (Device Type 320): stable and tested
 - Frequency and Event Counter (up to 1kHz) (Device Type 330): stable and tested
+- Temperature/Humidity Sensors SHT21 (Device Type 340): stable and tested
 
 todo: 
 - Docu
@@ -39,6 +40,10 @@ Real World Project with KKD-18:
 Real World Project with Barometric Pressure Sensor MS5607:
 
 !['ANNA_SDI'](./Img/baro_320.jpg)
+
+Real World Project with Temperature/Humidity Sensor SHT21 (3D-printed):
+
+!['SHT21'](./Img/sht21_3d_340.jpg)
 
 ## Companion Project(s): ##
 !['SDI12Term'](./Img/sdi12term_kl.jpg)

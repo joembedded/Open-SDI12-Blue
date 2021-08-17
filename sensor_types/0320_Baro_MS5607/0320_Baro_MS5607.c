@@ -9,11 +9,11 @@
 * Info: MS5607-02BA03 - Barometric Pressure Sensor
 *
 * Connect: 
-* - Sensor-Supply(White): I_VCC (Sensor needs <1uA I_q)
-* - Sensor-SCL(Green): I_SCL with >=10k-Pullup to I_VCC(!)
+* - Sensor-Supply(White): I_VCC (Sensor needs <1uA I_q. add a 100nF close to the Baro)
+* - Sensor-SCL(Green): I_SCL with <=10k-Pullup to I_VCC(!)
 * - Sensor-SDA(Yellow): I_SDA with <=10k-Pullup to I_VCC(!)
 * - Sensor-GND(Brown): I_GND
-*
+* 
 * Errors:
 * -101 No Reply1 to Reset
 * -102 Coeficient Error
