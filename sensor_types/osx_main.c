@@ -5,6 +5,12 @@
 *
 * UART is shared with tb_tools
 *
+* For new Sensor-Types:
+* - Set DEVICE_TYP (in device.h) close to the new Sensor or select DEVICE_TYP 200
+* - Test Sensor Access in this Module in the area DEBUG (debug_tb_cmdline())
+*   via local UART until it works
+* - Save the results in in a new device (ApplicSensor in Project) with new DEVICE_TYP
+*
 ***************************************************/
 
 #include <stdbool.h>
@@ -400,16 +406,36 @@ static void ad_spi_write(uint16_t len){
     nrfx_spim_xfer_desc_t xfer_desc = NRFX_SPIM_XFER_TRX(spi_out, len, NULL, 0); 
     APP_ERROR_CHECK(nrfx_spim_xfer(&spi, &xfer_desc, 0));
 }
-
+// first RESET recommended for ADS1220 after PowerUP
 static void ad_reset(void){
-  spi_out[0]=0x06;  // first RESET recommended for ADS1220 after PowerUP
+  spi_out[0]=0x06;  
   ad_spi_write(1);
   tb_delay_ms(1);
 }
+// The ADS1220 has 4 8-Bit Config-Registers, here seen as uint32t_LE
+// Write/Read Back all Config. Registers as uint32 LE
+static uint32_t ad_readback_config(void){
+  spi_out[0]=0x23;  // RREG(0-3) Read 4 Registers
+  ad_spi_write(1);
+  memset(spi_in,0,4);
+  ad_spi_read(4);
+  return *(uint32_t*)spi_in;
+}
+static int32_t ad_write_config(uint32_t aconf, bool verify){
+  spi_out[0]=0x43;  // WREG(0-3) Write 4 Registers
+  ad_spi_write(1);
+  *(uint32_t*)spi_out=aconf;
+  ad_spi_write(4);
+  if(verify){
+    if(ad_readback_config()!=aconf) return 0x80000001;  // Verify ERROR
+  }
+  return 0;
+}
+
 /********************************************************
 * messen_ad24(): Eine Messung ausloesen. Wenn Param
 * ungleich 255: Register0 setzen (mit GAIN und PGA).
-* soviele Werte Addieren, liefert SUMME der M Werte!
+* soviele Werte Addieren, liefert *SUMME* der M Werte!
 ********************************************************/
 static int32_t ad24_messen(uint8_t reg0, uint16_t m){
 	int32_t res;
@@ -440,40 +466,40 @@ static int32_t ad24_messen(uint8_t reg0, uint16_t m){
 }
 
 /*************************************************************
-* setup AD ADS1220
+* ad_messen_pt100()
 * Setup fuer 2.00k Ref, PT100 max. 250 Grad: PGA8 AN IDAC1mA
 * Init mit AIN zusammen (0-Punkt). Timeout des SPI: ca. 50 msec
 *************************************************************/
-void ad24_setup_pt(void){
-        spi_out[0]=0x43;  // 4 regs follow:
-        spi_out[1]=0xE6;  // 0: AIN auf Ref/2 GAIN1 PGA_BYPASS
-        spi_out[2]=0x24;  // 1: 45SPS NORMAL TS_DISA CONTI=1  BURNOUT_DIS (20 SPS sind zu langsam)
-        spi_out[3]=0x56;  // 2: EXT-REF FIR_5060 SW_OPN IDAC IDAC 1mA
-        spi_out[4]=0x80;  // 3: IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
-        ad_spi_write(5);
-}
+#define PT100_CONFIG 0x805624E6 // Config for internal Temperature Sensor in LE32
+// 0:E6 AIN auf Ref/2 GAIN1 PGA_BYPASS
+// 1:24 45SPS NORMAL TS_DISA CONTI=1  BURNOUT_DIS (20 SPS sind zu langsam)
+// 2:56 EXT-REF FIR_5060 SW_OPN IDAC IDAC 1mA
+// 3:80 IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
 
-#define ASHIFT 3
-#define AAVG	8
-/*****************************************************************
-* ad_messen_pt100()
-*****************************************************************/
+#define PT100_DELAY_MS 100
+#define PT100_MITTEL 8
+
 int32_t ad_messen_pt100(void){
 	int32_t offset,wert;
-	offset=ad24_messen(255,AAVG);
-	wert=(ad24_messen(0x06,AAVG)-offset)>>ASHIFT; // Ain0/1 Gain8 PGA
+
+        if(ad_write_config(PT100_CONFIG,true)) return 0x80000001;
+        tb_delay_ms(PT100_DELAY_MS); // For CurrentSource
+
+	offset=ad24_messen(255,PT100_MITTEL);
+	wert=(ad24_messen(0x06,PT100_MITTEL)-offset)/PT100_MITTEL; // Ain0/1 Gain8 PGA
+
 	return wert;
 }
 
+#define ITEMP_CONFIG 0x5022E0 // Config for internal Temperature Sensor in LE32
+  // 0:E0 AIN auf Ref/2 GAIN1 PGA_BYPASS
+  // 1:22 45SPS NORMAL TS_ENA CONTI=0  BURNOUT_DIS  (20 SPS sind zu langsam)
+  // 2:50 EXT-REF FIR_5060 SW_OPN IDAC IDAC OFF
+  // 3:00 IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
 int32_t ad_itemp(void){
   int32_t res;
-  spi_out[0]=0x43;  // 4 regs follow:
-  spi_out[1]=0xE0;  // 0: AIN auf Ref/2 GAIN1 PGA_BYPASS
-  spi_out[2]=0x22;  // 1: 45SPS NORMAL TS_ENA CONTI=0  BURNOUT_DIS  (20 SPS sind zu langsam)
-  spi_out[3]=0x50;  // 2: EXT-REF FIR_5060 SW_OPN IDAC IDAC OFF
-  spi_out[4]=0x00;  // 3: IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
-  ad_spi_write(5);
-
+  if(ad_write_config(ITEMP_CONFIG,true)) return 0x80000001;
+  // No Delay, No Averages
   // ftemp=(res/1024)*0.03125; bzw. ftemp=res/32768.0
   res = ad24_messen(255,1); // 1 Messung reicht
   return res;
@@ -495,10 +521,9 @@ case 'a':
   ad_spi_init();
   ad_reset();
 
-  //ad24_setup_pt();
-  //tb_delay_ms(100);
-  //res=ad_messen_pt100();
-  //tb_printf("PT-RES: %d  %x\n",res,res);
+
+
+  res=ad_messen_pt100();
 
   while(1){
     res=ad_itemp();
