@@ -440,7 +440,8 @@ static int32_t ad_write_config(uint32_t aconf, bool verify){
 static int32_t ad24_messen(uint8_t reg0, uint16_t m){
 	int32_t res;
 	int32_t sum;
-        uint16_t dcnt=0;
+        uint16_t dcnt;
+        bool skip_flag=false;
 	// START
 	if(reg0!=255){
           spi_out[0]=0x40;  // WREG ab 0, 1 Bytes folgen
@@ -450,7 +451,12 @@ static int32_t ad24_messen(uint8_t reg0, uint16_t m){
 	sum=0;
         spi_out[0]=0x08;  
         ad_spi_write(1); // START CONTI=1  Einmal Starten
+        if(m>1){          // If m>1: Skip first measure
+          skip_flag=true;
+          m++;    
+        }
 	while(m--){
+                dcnt=0; 
 		while(nrf_gpio_pin_read(FPIN_DRDY_PIN)) {
                   tb_delay_ms(1);	// Warten bis Messwert
                   dcnt++;
@@ -460,50 +466,63 @@ static int32_t ad24_messen(uint8_t reg0, uint16_t m){
                 res=spi_in[2]+(spi_in[1]<<8)+(spi_in[0]<<16);
                 if(spi_in[0]&128) res|=0xFF000000;  // Ext. Neg. Values-Bit
 
-		sum+=res;
+		if(!skip_flag) sum+=res;
+                skip_flag=false;
 	}
 	return sum;
 }
+// Universal Measure Routine
+// delay in ms, mittel <128!
+int32_t ad_measure(uint32_t confregs, uint16_t delay, uint16_t mittel,bool kaliflag){
+  int32_t res,offset;
+  uint8_t reg0;
+  if(kaliflag){ // If kalibration: force Ain_p/n to A/ref/2 first
+      reg0 = confregs & 0xFF; // Isolate Reg0
+      confregs &= ~0xF0;  // And replace by Short
+      confregs |= 0xE0;
+  }else{
+    reg0=255;
+    offset=0;
+  }
+  if(ad_write_config(confregs,true)) return 0x80000001;
+  if(delay) tb_delay_ms(delay);
 
-/*************************************************************
-* ad_messen_pt100()
-* Setup fuer 2.00k Ref, PT100 max. 250 Grad: PGA8 AN IDAC1mA
-* Init mit AIN zusammen (0-Punkt). Timeout des SPI: ca. 50 msec
-*************************************************************/
+  if(kaliflag){
+    offset=ad24_messen(255,mittel);
+  }
+
+  res = (ad24_messen(reg0,mittel)-offset)/mittel;
+  return res;
+}
+
 #define PT100_CONFIG 0x805624E6 // Config for internal Temperature Sensor in LE32
 // 0:E6 AIN auf Ref/2 GAIN1 PGA_BYPASS
 // 1:24 45SPS NORMAL TS_DISA CONTI=1  BURNOUT_DIS (20 SPS sind zu langsam)
 // 2:56 EXT-REF FIR_5060 SW_OPN IDAC IDAC 1mA
 // 3:80 IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
-
-#define PT100_DELAY_MS 100
+// Setup fuer 2.00k Ref, PT100 max. 250 Grad: PGA8 AN IDAC1mA
+#define PT100_DELAY 50
 #define PT100_MITTEL 8
+#define PT100_KALI true
 
-int32_t ad_messen_pt100(void){
-	int32_t offset,wert;
-
-        if(ad_write_config(PT100_CONFIG,true)) return 0x80000001;
-        tb_delay_ms(PT100_DELAY_MS); // For CurrentSource
-
-	offset=ad24_messen(255,PT100_MITTEL);
-	wert=(ad24_messen(0x06,PT100_MITTEL)-offset)/PT100_MITTEL; // Ain0/1 Gain8 PGA
-
-	return wert;
-}
+#define BRIDGE01RPN_CONFIG 0x58240E // Config for ext. Bridge
+  // 0:0E AIN auf A01 GAIN128 PGA_ENA
+  // 1:24 45SPS NORMAL TS_ENA CONTI=1  BURNOUT_DIS  (20 SPS sind zu langsam)
+  // 2:58 EXT-REF FIR_5060 SW_CLOSE T_OFF BO_OFF
+  // 3:00 IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
+#define BRIDGE01RPN_DELAY 50
+#define BRIDGE01RPN_MITTEL 8
+#define BRIDGE01RPN_KALI true
 
 #define ITEMP_CONFIG 0x5022E0 // Config for internal Temperature Sensor in LE32
   // 0:E0 AIN auf Ref/2 GAIN1 PGA_BYPASS
   // 1:22 45SPS NORMAL TS_ENA CONTI=0  BURNOUT_DIS  (20 SPS sind zu langsam)
-  // 2:50 EXT-REF FIR_5060 SW_OPN IDAC IDAC OFF
+  // 2:50 EXT-REF FIR_5060 SW_OPN T_OFF BO_OFF
   // 3:00 IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
-int32_t ad_itemp(void){
-  int32_t res;
-  if(ad_write_config(ITEMP_CONFIG,true)) return 0x80000001;
-  // No Delay, No Averages
   // ftemp=(res/1024)*0.03125; bzw. ftemp=res/32768.0
-  res = ad24_messen(255,1); // 1 Messung reicht
-  return res;
-}
+#define ITEMP_DELAY 0
+#define ITEMP_MITTEL 1
+#define ITEMP_KALI false
 
 //====== TEST COMMANDS FOR NEW SENSOR END_A ========
 
@@ -517,19 +536,21 @@ bool debug_tb_cmdline(uint8_t *pc, uint32_t val){
   //====== TEST COMMANDS FOR NEW SENSOR START_S ========
 case 'a':
   {
-  int32_t res;
+  int32_t res,tara;
   ad_spi_init();
   ad_reset();
 
-
-
-  res=ad_messen_pt100();
-
+  tara = ad_measure(BRIDGE01RPN_CONFIG,BRIDGE01RPN_DELAY,BRIDGE01RPN_MITTEL,BRIDGE01RPN_KALI);
   while(1){
-    res=ad_itemp();
-    tb_printf("iTemp-RES: %d  %x  %f\n",res,res, ((float)res)/32768.0);
+    res=ad_measure(BRIDGE01RPN_CONFIG,BRIDGE01RPN_DELAY,BRIDGE01RPN_MITTEL,BRIDGE01RPN_KALI)-tara;
+    tb_printf("Bridge-RES: %d  %x  -> %.2f\n",res,res,(float)(res)*1.69e-4);
+
+    res=ad_measure(ITEMP_CONFIG,ITEMP_DELAY,ITEMP_MITTEL,ITEMP_KALI);
+    tb_printf("Temp-RES: %d  %x  -> %.2f\n",res,res,(float)(res)/32768.0);
+
     if(tb_getc()!=-1) break;
     tb_delay_ms(500);
+
   }
 
   ad_spi_close();
