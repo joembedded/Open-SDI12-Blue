@@ -6,10 +6,10 @@
 * UART is shared with tb_tools
 *
 * For new Sensor-Types:
-* - Set DEVICE_TYP (in device.h) close to the new Sensor or select DEVICE_TYP 200
-* - Test Sensor Access in this Module in the area DEBUG (debug_tb_cmdline())
+* - Set DEVICE_TYP to new Sensor
+* - Copy ApplicSensor/0200_testsensor.c to ApplicSensor/xxx_newsensor.c
+* - Test Sensor Access in ApplicSensor/xxx_newsensor.c -> DEBUG (debug_tb_cmdline())
 *   via local UART until it works
-* - Save the results in in a new device (ApplicSensor in Project) with new DEVICE_TYP
 *
 ***************************************************/
 
@@ -30,11 +30,6 @@
 #include "saadc.h"
 #include "tb_tools.h"
 #include "bootinfo.h"
-
-#if DEBUG
- #include "i2c.h"
- #include "nrfx_spim.h"
-#endif
 
 #ifdef ENABLE_BLE
 #include "ltx_ble.h"
@@ -349,221 +344,6 @@ void type_cmdprint_line(uint8_t isrc, char *pc) {
   }
 }
 
-#if DEBUG
-// === DEBUG START ===
-//====== TEST COMMANDS FOR NEW SENSOR START_A ========
-
-// ADS1220 4-Channel, 2-kSPS, 24-Bit ADC with Integrated PGA and Reference
-#define FPIN_SCK_PIN  IX_SCL   //  30 Clock
-#define FPIN_MOSI_PIN IX_X2   //  25 AD:DIN
-#define FPIN_MISO_PIN IX_SDA   //  29 AD:Dout
-#define FPIN_DRDY_PIN IX_X1   //  27 AD:DRdy
-#define FPIN_PWR_PIN IX_X0   //   28 AD:Vcc
-
-#define SPI_INSTANCE  1      // 0:I2C, 1:SPI, 2/3:SPI-Flash CPU 32/40
-static const nrfx_spim_t spi = NRFX_SPIM_INSTANCE(SPI_INSTANCE); 
-static bool spi_init_flag=false;
-static nrfx_spim_config_t spi_config = NRFX_SPIM_DEFAULT_CONFIG;
-
-// 2 Buffers for AD-Data
-#define MAX_SPI_IO 8
-static uint8_t spi_out[MAX_SPI_IO];
-static uint8_t spi_in[MAX_SPI_IO];
-
-static int16_t ad_spi_init(void){
-    if(spi_init_flag==true) return 0;  // Already init
-
-    spi_config.frequency      = NRF_SPIM_FREQ_1M; // OK for AD1220
-    spi_config.miso_pin       = FPIN_MISO_PIN;
-    spi_config.mosi_pin       = FPIN_MOSI_PIN;
-    spi_config.sck_pin        = FPIN_SCK_PIN;
-    // 'Speical:'
-    spi_config.mode =   NRF_SPIM_MODE_1;       //CPOL = 0 (Active High); CPHA = TRAILING (1)
-    spi_config.orc = 0x0; // Default TX-Zeichen
-    APP_ERROR_CHECK(nrfx_spim_init(&spi, &spi_config, NULL, NULL)); // Use Blocking transfer
-
-    nrf_gpio_cfg_input(FPIN_DRDY_PIN, GPIO_PIN_CNF_PULL_Pullup);  
-    // Supply Sensor with Power
-    nrf_gpio_cfg(FPIN_PWR_PIN,NRF_GPIO_PIN_DIR_OUTPUT,NRF_GPIO_PIN_INPUT_DISCONNECT,NRF_GPIO_PIN_NOPULL,
-      NRF_GPIO_PIN_S0H1 /*High Out*/, NRF_GPIO_PIN_NOSENSE);
-    nrf_gpio_pin_set(FPIN_PWR_PIN);
-    tb_delay_ms(50);  // Wait until stable
-    spi_init_flag=true;
-    return 0;
-}
-static void ad_spi_close(void){
-    if(spi_init_flag==false) return;  // Already uninit
-    nrfx_spim_uninit(&spi);
-    nrf_gpio_cfg_default(FPIN_PWR_PIN); // Power OFF
-    spi_init_flag=false;
-}
-
-static void ad_spi_read(uint16_t len){ 
-    nrfx_spim_xfer_desc_t xfer_desc = NRFX_SPIM_XFER_TRX(NULL, 0, spi_in, len); 
-    APP_ERROR_CHECK(nrfx_spim_xfer(&spi, &xfer_desc, 0));
-}
-static void ad_spi_write(uint16_t len){
-    nrfx_spim_xfer_desc_t xfer_desc = NRFX_SPIM_XFER_TRX(spi_out, len, NULL, 0); 
-    APP_ERROR_CHECK(nrfx_spim_xfer(&spi, &xfer_desc, 0));
-}
-// first RESET recommended for ADS1220 after PowerUP
-static void ad_reset(void){
-  spi_out[0]=0x06;  
-  ad_spi_write(1);
-  tb_delay_ms(1);
-}
-// The ADS1220 has 4 8-Bit Config-Registers, here seen as uint32t_LE
-// Write/Read Back all Config. Registers as uint32 LE
-static uint32_t ad_readback_config(void){
-  spi_out[0]=0x23;  // RREG(0-3) Read 4 Registers
-  ad_spi_write(1);
-  memset(spi_in,0,4);
-  ad_spi_read(4);
-  return *(uint32_t*)spi_in;
-}
-static int32_t ad_write_config(uint32_t aconf, bool verify){
-  spi_out[0]=0x43;  // WREG(0-3) Write 4 Registers
-  ad_spi_write(1);
-  *(uint32_t*)spi_out=aconf;
-  ad_spi_write(4);
-  if(verify){
-    if(ad_readback_config()!=aconf) return 0x80000001;  // Verify ERROR
-  }
-  return 0;
-}
-
-/********************************************************
-* messen_ad24(): Eine Messung ausloesen. Wenn Param
-* ungleich 255: Register0 setzen (mit GAIN und PGA).
-* soviele Werte Addieren, liefert *SUMME* der M Werte!
-********************************************************/
-static int32_t ad24_messen(uint8_t reg0, uint16_t m){
-	int32_t res;
-	int32_t sum;
-        uint16_t dcnt;
-        bool skip_flag=false;
-	// START
-	if(reg0!=255){
-          spi_out[0]=0x40;  // WREG ab 0, 1 Bytes folgen
-          spi_out[1]=reg0;  
-          ad_spi_write(2);
-	}
-	sum=0;
-        spi_out[0]=0x08;  
-        ad_spi_write(1); // START CONTI=1  Einmal Starten
-        if(m>1){          // If m>1: Skip first measure
-          skip_flag=true;
-          m++;    
-        }
-	while(m--){
-                dcnt=0; 
-		while(nrf_gpio_pin_read(FPIN_DRDY_PIN)) {
-                  tb_delay_ms(1);	// Warten bis Messwert
-                  dcnt++;
-                  if(dcnt==200) return 0x80000000;   // Timeout 200msec, most neg. Number!
-                }
-                ad_spi_read(3);
-                res=spi_in[2]+(spi_in[1]<<8)+(spi_in[0]<<16);
-                if(spi_in[0]&128) res|=0xFF000000;  // Ext. Neg. Values-Bit
-
-		if(!skip_flag) sum+=res;
-                skip_flag=false;
-	}
-	return sum;
-}
-// Universal Measure Routine
-// delay in ms, mittel <128!
-int32_t ad_measure(uint32_t confregs, uint16_t delay, uint16_t mittel,bool kaliflag){
-  int32_t res,offset;
-  uint8_t reg0;
-  if(kaliflag){ // If kalibration: force Ain_p/n to A/ref/2 first
-      reg0 = confregs & 0xFF; // Isolate Reg0
-      confregs &= ~0xF0;  // And replace by Short
-      confregs |= 0xE0;
-  }else{
-    reg0=255;
-    offset=0;
-  }
-  if(ad_write_config(confregs,true)) return 0x80000001;
-  if(delay) tb_delay_ms(delay);
-
-  if(kaliflag){
-    offset=ad24_messen(255,mittel);
-  }
-
-  res = (ad24_messen(reg0,mittel)-offset)/mittel;
-  return res;
-}
-
-#define PT100_CONFIG 0x805624E6 // Config for internal Temperature Sensor in LE32
-// 0:E6 AIN auf Ref/2 GAIN1 PGA_BYPASS
-// 1:24 45SPS NORMAL TS_DISA CONTI=1  BURNOUT_DIS (20 SPS sind zu langsam)
-// 2:56 EXT-REF FIR_5060 SW_OPN IDAC IDAC 1mA
-// 3:80 IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
-// Setup fuer 2.00k Ref, PT100 max. 250 Grad: PGA8 AN IDAC1mA
-#define PT100_DELAY 50
-#define PT100_MITTEL 8
-#define PT100_KALI true
-
-#define BRIDGE01RPN_CONFIG 0x58240E // Config for ext. Bridge
-  // 0:0E AIN auf A01 GAIN128 PGA_ENA
-  // 1:24 45SPS NORMAL TS_ENA CONTI=1  BURNOUT_DIS  (20 SPS sind zu langsam)
-  // 2:58 EXT-REF FIR_5060 SW_CLOSE T_OFF BO_OFF
-  // 3:00 IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
-#define BRIDGE01RPN_DELAY 50
-#define BRIDGE01RPN_MITTEL 8
-#define BRIDGE01RPN_KALI true
-
-#define ITEMP_CONFIG 0x5022E0 // Config for internal Temperature Sensor in LE32
-  // 0:E0 AIN auf Ref/2 GAIN1 PGA_BYPASS
-  // 1:22 45SPS NORMAL TS_ENA CONTI=0  BURNOUT_DIS  (20 SPS sind zu langsam)
-  // 2:50 EXT-REF FIR_5060 SW_OPN T_OFF BO_OFF
-  // 3:00 IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
-  // ftemp=(res/1024)*0.03125; bzw. ftemp=res/32768.0
-#define ITEMP_DELAY 0
-#define ITEMP_MITTEL 1
-#define ITEMP_KALI false
-
-//====== TEST COMMANDS FOR NEW SENSOR END_A ========
-
-// Additional Test-CMDs via TB_UART
-// IMPORTANT: only SMALL capitals for User-CMDs!
-bool debug_tb_cmdline(uint8_t *pc, uint32_t val){
-  switch (*pc) {
-  case 'S': // Often useful
-    ltx_i2c_scan((bool)val, false); // 0:W,1:R  NoPU */
-    break;
-  //====== TEST COMMANDS FOR NEW SENSOR START_S ========
-case 'a':
-  {
-  int32_t res,tara;
-  ad_spi_init();
-  ad_reset();
-
-  tara = ad_measure(BRIDGE01RPN_CONFIG,BRIDGE01RPN_DELAY,BRIDGE01RPN_MITTEL,BRIDGE01RPN_KALI);
-  while(1){
-    res=ad_measure(BRIDGE01RPN_CONFIG,BRIDGE01RPN_DELAY,BRIDGE01RPN_MITTEL,BRIDGE01RPN_KALI)-tara;
-    tb_printf("Bridge-RES: %d  %x  -> %.2f\n",res,res,(float)(res)*1.69e-4);
-
-    res=ad_measure(ITEMP_CONFIG,ITEMP_DELAY,ITEMP_MITTEL,ITEMP_KALI);
-    tb_printf("Temp-RES: %d  %x  -> %.2f\n",res,res,(float)(res)/32768.0);
-
-    if(tb_getc()!=-1) break;
-    tb_delay_ms(500);
-
-  }
-
-  ad_spi_close();
-  }
-  break;
-  //====== TEST COMMANDS FOR NEW SENSOR END_S ========
-  default:
-    return false;
-  }
-  return true; // Command processed
-}
-// === DEBUG END
-#endif
 
 
 // Die Input String und Values
@@ -600,7 +380,7 @@ bool type_cmdline(uint8_t isrc, uint8_t *pc, uint32_t val) {
   default:
 #if DEBUG
     // If DEBUG Additional Test-CMDs via TB_UART
-    if(isrc == SRC_CMDLINE) return debug_tb_cmdline(pc, val);
+    if(isrc == SRC_CMDLINE) return debug_tb_cmdline(pc, val); // extern
 #endif    
     return false;
   }

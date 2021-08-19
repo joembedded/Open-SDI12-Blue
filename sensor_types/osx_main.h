@@ -55,4 +55,8 @@ int16_t sensor_valio_measure(uint8_t isrc);
 void sensor_valio_xcmd(uint8_t isrc, char *pc);
 int16_t sensor_wait_break(uint8_t isrc, int16_t wt);
 
+#if DEBUG
+bool debug_tb_cmdline(uint8_t *pc, uint32_t val);
+#endif
+
 //***

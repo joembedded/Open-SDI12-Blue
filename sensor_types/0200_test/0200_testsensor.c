@@ -21,8 +21,16 @@
 #include "tb_tools.h"
 
 #include "osx_main.h"
+#include "osx_pins.h"
 
 #include "intmem.h"
+
+#if DEBUG
+ #include "nrf_drv_gpiote.h"
+ #include "i2c.h"
+ #include "nrfx_spim.h"
+#endif
+
 
 #if DEVICE_TYP != 200
 #error "Wrong DEVICE_TYP, select other Source in AplicSensor"
@@ -43,6 +51,35 @@ typedef struct {
 PARAM param = {{1.0, 0.0, 1.001, 0.22}};
 
 //------------------- Implementation -----------
+#if DEBUG
+// === DEBUG START ===
+//====== TEST COMMANDS FOR NEW SENSOR START_A ========
+//====== TEST COMMANDS FOR NEW SENSOR END_A ========
+
+// Additional Test-CMDs via TB_UART
+// IMPORTANT: only SMALL capitals for User-CMDs!
+bool debug_tb_cmdline(uint8_t *pc, uint32_t val){
+  switch (*pc) {
+  case 'S': // Often useful
+    ltx_i2c_scan((bool)val, false); // 0:W,1:R  NoPU */
+    break;
+  //====== TEST COMMANDS FOR NEW SENSOR START_S ========
+  case 'a':
+    {
+      // ....
+    }
+  break;
+  //====== TEST COMMANDS FOR NEW SENSOR END_S ========
+  default:
+    return false;
+  }
+  return true; // Command processed
+}
+// === DEBUG END
+#endif
+
+
+
 void sensor_init(void) {
   // Id has fixed structure, max. 30+'\0'
   // all cccccccc.8 mmmmmm.6 vvv.3 xx..xx.[0-13]
