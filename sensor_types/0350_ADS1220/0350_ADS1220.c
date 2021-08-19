@@ -239,6 +239,29 @@ static int32_t ad24_messen(uint8_t reg0, uint16_t m){
 	}
 	return sum;
 }
+
+/*********************************************************************
+* ad_pt100_wert: Aus dem Ver. PT100 hm eine Temp berechnen.
+* Siehe PTXXX-Linearisierung.XLS. 
+* Koeffizienten ermittelt fuer 2k GAIN 8 = 2e23
+*********************************************************************/
+#define pt_koeff_x0		-2.457390E+02
+#define pt_koeff_x1		7.022650E-05
+#define pt_koeff_x2		8.966090E-13
+float ad_pt100_wert(long cnt){
+	float sum,fx;
+	
+	if((cnt<2427000) || (cnt>4910000)) 
+          return -99; // Begrenzen bei Schrott (<-70, >120)
+
+	sum=pt_koeff_x0; // -245.7885;
+	fx=(float) cnt;
+	sum+=pt_koeff_x1*fx; // 23.5726
+	fx*=fx;
+	sum+=pt_koeff_x2*fx; // 0.1005893
+	return sum;
+}
+
 // Universal Measure Routine
 // delay in ms, mittel <128!
 int32_t ad_measure(uint32_t confregs, uint16_t delay, uint16_t mittel,bool kaliflag){
@@ -277,6 +300,8 @@ int32_t get_analog_channel(uint8_t pidx, float *perg){
     break;
 
   case P_TYP_PT100_A: // 2 PT100 via 2k REF and IDAC and Linearisation
+    res = ad_measure(pkan->ad_config, pkan->delay_ms, pkan->mittel , pkan->kali_flag);
+    fres = ad_pt100_wert(res);  // Error is -99 oC
     break;
 
   case P_TYP_STD: // 3 Standard AD
@@ -304,14 +329,21 @@ bool debug_tb_cmdline(uint8_t *pc, uint32_t val){
   {
   int32_t res;
   float fval;
+  uint32_t t0;
+  uint32_t ad_msec;
+  
   ad_spi_init();
   ad_reset();
 
   while(1){
     fval=0;
+    t0 = tb_get_ticks();
     res=get_analog_channel(val, &fval);
     if(res<-2147483392) tb_printf("ERR:%x\n",res); 
-    else tb_printf("Res:%d => %f\n",res,fval);
+    else {
+      ad_msec=tb_deltaticks_to_ms(t0, tb_get_ticks()); // Without Power ON
+      tb_printf("Res:%d (P:%u/Real:%u msec) => %f %s\n",res,ad_physkan[val].true_msec, ad_msec ,fval,ad_physkan[val].unit );
+    } 
 
     if(tb_getc()!=-1) break;
     tb_delay_ms(500);
