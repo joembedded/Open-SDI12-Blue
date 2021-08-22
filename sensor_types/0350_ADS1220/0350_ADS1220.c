@@ -14,11 +14,15 @@
 * that are encoded here in an uint32 (in LE Format)
 * See Docu!
 *
-* Errors:
+* (internal) Errors:
+* // 0x80000000 - 0x800000FF ('xxx < -2147483392' as int32) reserved for Error codes
 * 0x80000000: AD Timeout
 * 0x80000001: Verify AD Config
 * 0x80000002: Wrong ad_physkan
 * 0x80000003: Invalid or not enabled ad_physkan
+*
+* (external) Errors:
+* -99 for PT100: OutOfRange or Sensor broken
 *
 ***************************************************/
 
@@ -50,8 +54,8 @@
 // --------- Locals -------------
 
 // ===Some tested configurations Start ===
-#define PT100_CONFIG 0x805624E6 // Config for internal Temperature Sensor in LE32
-// 0:E6 AIN auf Ref/2 GAIN1 PGA_BYPASS
+#define PT100_CONFIG 0x80562406 // Config for internal Temperature Sensor in LE32
+// 0:06 AIN0/AIN1 auf Ref/2 GAIN1 PGA_BYPASS
 // 1:24 45SPS NORMAL TS_DISA CONTI=1  BURNOUT_DIS (20 SPS sind zu langsam)
 // 2:56 EXT-REF FIR_5060 SW_OPN IDAC IDAC 1mA
 // 3:80 IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
@@ -59,11 +63,12 @@
 #define PT100_DELAY 50
 #define PT100_MITTEL 8
 #define PT100_KALI true
+#define PT100_TIME 470  // msec measured 453
 
-#define BRIDGE01RPN_CONFIG 0x58240E // Config for ext. Bridge
+#define BRIDGE01RPN_CONFIG 0x50240E // Config for ext. Bridge
   // 0:0E AIN auf A01 GAIN128 PGA_ENA
   // 1:24 45SPS NORMAL TS_ENA CONTI=1  BURNOUT_DIS  (20 SPS sind zu langsam)
-  // 2:58 EXT-REF FIR_5060 SW_CLOSE T_OFF BO_OFF
+  // 2:50 EXT-REF FIR_5060 SW_OPEN T_OFF BO_OFF
   // 3:00 IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
 #define BRIDGE01RPN_DELAY 50
 #define BRIDGE01RPN_MITTEL 8
@@ -72,12 +77,36 @@
 #define ITEMP_CONFIG 0x5022E0 // Config for internal Temperature Sensor in LE32
   // 0:E0 AIN auf Ref/2 GAIN1 PGA_BYPASS
   // 1:22 45SPS NORMAL TS_ENA CONTI=0  BURNOUT_DIS  (20 SPS sind zu langsam)
-  // 2:50 EXT-REF FIR_5060 SW_OPN T_OFF BO_OFF
+  // 2:50 EXT-REF(egal= FIR_5060 SW_OPN T_OFF BO_OFF
   // 3:00 IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
   // ftemp=(res/1024)*0.03125; bzw. ftemp=res/32768.0
 #define ITEMP_DELAY 0
 #define ITEMP_MITTEL 1
 #define ITEMP_KALI false
+#define ITEMP_TIME 30 // measured 22 msec
+
+#define SE_CONFIG 0x102481 // Config for SingleEnded chan 0
+  // 0:81 AIN auf A0 GAIN1 PGA_DISA (Channel 0-3: 81-B1)
+  // 1:24 45SPS NORMAL TS_ENA CONTI=1  BURNOUT_DIS  (20 SPS sind zu langsam)
+  // 2:10 Int-REF FIR_5060 SW_OPEN T_OFF BO_OFF
+  // 3:00 IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
+#define SE_DELAY 50
+#define SE_MITTEL 4
+#define SE_KALI true
+#define SE_MULTI_G1 2.4414e-04 // Info: 2^3 Cnts equal 2048 mV for Gain 1
+#define SE_TIME 290 // measured 275 msec
+
+#define DE_CONFIG 0x10240E // Config for Differential 
+  // 0:0E AIN auf A0 GAIN128 PGA_ENA (Channel 0-3: 81-B1) A01:0E, A02:1E, A23:5E
+  // 1:24 45SPS NORMAL TS_ENA CONTI=1  BURNOUT_DIS  (20 SPS sind zu langsam)
+  // 2:10 Int-REF FIR_5060 SW_OPEN T_OFF BO_OFF
+  // 3:00 IDAC1_AIN3 IDAC2_DIS DRDY_ONLY 0
+#define DE_DELAY 50
+#define DE_MITTEL 8
+#define DE_KALI true
+#define DE_MULTI_G1 1.907e-06 // Info: 2^3 Cnts equal 16 mV for Gain 128
+#define DE_TIME 470  // msec measured 453
+
 // ===Some tested configurations End ===
 
 
@@ -94,14 +123,24 @@ typedef struct {
   uint16_t true_msec;   // 2 Measure time (measured)
 } AD_PHYSKAN;
 
-#define P_TYP_ITEMP 1   // Internal Temperature
-#define P_TYP_PT100_A 2  // PT100 via 2k REF and IDAC and Linearisation
-#define P_TYP_STD 3     // Standard AD
+#define P_TYP_ITEMP 1   // Internal Temperature, Res: oC
+#define P_TYP_PT100_A 2  // PT100 via 2k REF and IDAC and Linearisation, Res: oC
+#define P_TYP_STD 3     // Standard AD, Res; mV od CNTs
 
 AD_PHYSKAN ad_physkan[ANZ_ad_physkan]={
-  {1, ITEMP_CONFIG, ITEMP_DELAY, ITEMP_MITTEL, ITEMP_KALI, "oC", 1.0, 0.0, 999 /*tbd.*/},
-  {2, PT100_CONFIG, PT100_DELAY, PT100_MITTEL, PT100_KALI, "oC", 1.0, 0.0, 999 /*tbd.*/},
-  {3, BRIDGE01RPN_CONFIG, BRIDGE01RPN_DELAY, BRIDGE01RPN_MITTEL, BRIDGE01RPN_KALI, "Cnt", 1.0, 0.0, 999 /*tbd.*/},
+/*0*/  {1, ITEMP_CONFIG, ITEMP_DELAY, ITEMP_MITTEL, ITEMP_KALI, "oC", 1.0, 0.0, ITEMP_TIME},
+/*1*/  {2, PT100_CONFIG, PT100_DELAY, PT100_MITTEL, PT100_KALI, "oC", 1.0, 0.0, PT100_TIME},
+
+/*2*/  {3, SE_CONFIG+0x00, SE_DELAY, SE_MITTEL, SE_KALI, "mV", SE_MULTI_G1, 0.0, SE_TIME},
+/*3*/  {3, SE_CONFIG+0x10, SE_DELAY, SE_MITTEL, SE_KALI, "mV", SE_MULTI_G1, 0.0, SE_TIME},
+/*4*/  {3, SE_CONFIG+0x20, SE_DELAY, SE_MITTEL, SE_KALI, "mV", SE_MULTI_G1, 0.0, SE_TIME},
+/*5*/  {3, SE_CONFIG+0x30, SE_DELAY, SE_MITTEL, SE_KALI, "mV", SE_MULTI_G1, 0.0, SE_TIME},
+
+/*6*/  {3, DE_CONFIG+0x00, DE_DELAY, DE_MITTEL, DE_KALI, "mV", DE_MULTI_G1, 0.0, DE_TIME},
+/*7*/  {3, DE_CONFIG+0x50, DE_DELAY, DE_MITTEL, DE_KALI, "mV", DE_MULTI_G1, 0.0, DE_TIME},
+
+// not important /*x*/  {3, DE_CONFIG+0x10, DE_DELAY, DE_MITTEL, DE_KALI, "mV", 1.0, 0.0, 999 /*tbd.*/},
+// not important /*x*/  {3, BRIDGE01RPN_CONFIG, BRIDGE01RPN_DELAY, BRIDGE01RPN_MITTEL, BRIDGE01RPN_KALI, "Cnt", 1.0, 0.0, 999 /*tbd.*/},
 };
 
 // ---User Part---
@@ -339,7 +378,7 @@ bool debug_tb_cmdline(uint8_t *pc, uint32_t val){
     fval=0;
     t0 = tb_get_ticks();
     res=get_analog_channel(val, &fval);
-    if(res<-2147483392) tb_printf("ERR:%x\n",res); 
+    if(res<-2147483392) tb_printf("ERR:%x\n",res); // '<0x80000100'
     else {
       ad_msec=tb_deltaticks_to_ms(t0, tb_get_ticks()); // Without Power ON
       tb_printf("Res:%d (P:%u/Real:%u msec) => %f %s\n",res,ad_physkan[val].true_msec, ad_msec ,fval,ad_physkan[val].unit );
@@ -372,8 +411,8 @@ void sensor_init(void) {
   // TT:'TerraTransfer', A24:'Analog_Sensor 24 Bit', 'A': ADC1220
   sprintf(sensor_id, "TT_A24_A_0350_OSX%08X", mac_addr_l);
 
-  // Try to read FACTORY KALI Parameters
-  intpar_mem_read(ID_INTMEM_USER0+1, sizeof(ad_physkan), (uint8_t *)&ad_physkan);
+  // *todo* Try to read FACTORY KALI Parameters
+  // *todo* intpar_mem_read(ID_INTMEM_USER0+1, sizeof(ad_physkan), (uint8_t *)&ad_physkan);
 
   // Try to read USER KALI Parameters
   intpar_mem_read(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
