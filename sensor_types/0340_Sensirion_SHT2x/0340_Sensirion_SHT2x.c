@@ -181,6 +181,36 @@ int16_t sht_values_get(void) {
 //--- Local Functions for SHT End
 
 //------------------- Implementation -----------
+#if DEBUG
+// === DEBUG START ===
+//====== TEST COMMANDS FOR NEW SENSOR START_A ========
+//====== TEST COMMANDS FOR NEW SENSOR END_A ========
+
+// Additional Test-CMDs via TB_UART
+// IMPORTANT: only SMALL capitals for User-CMDs!
+bool debug_tb_cmdline(uint8_t *pc, uint32_t val){
+  switch (*pc) {
+  case 'S': // Often useful
+    ltx_i2c_scan((bool)val, false); // 0:W,1:R  NoPU */
+    break;
+  //====== TEST COMMANDS FOR NEW SENSOR START_S ========
+  case 'a':
+    {
+      // ....
+    }
+  break;
+  //====== TEST COMMANDS FOR NEW SENSOR END_S ========
+  default:
+    return false;
+  }
+  return true; // Command processed
+}
+// === DEBUG END
+#endif
+
+
+
+
 void sensor_init(void) {
   // Id has fixed structure, max. 30+'\0'
   // all cccccccc.8 mmmmmm.6 vvv.3 xx..xx.[0-13]
@@ -267,16 +297,17 @@ void sensor_valio_xcmd(uint8_t isrc, char *pc) {
 
   if (*pc == 'K') { // Kn! or Kn=val!
     pidx = (uint16_t)strtoul(pc + 1, &pc, 0);
-    if (pidx > ANZ_KOEFF)
+    if (pidx >= ANZ_KOEFF)
       return;
+    fval = param.koeff[pidx];
     if (*pc == '=') { // Set Koeff
       fval = strtof(pc + 1, &pc);
-      param.koeff[pidx] = fval;
     }
-    if (*pc != '!')
-      return;
+    if (*pc != '!')  return;
     // Send Koeffs
-    sprintf(outrs_buf, "%cK%d=%f", my_sdi_adr, pidx, param.koeff[pidx]);
+    param.koeff[pidx] = fval;
+    sprintf(outrs_buf, "%cK%d=%f", my_sdi_adr, pidx, fval);
+
   } else if (!strcmp(pc, "Write!")) { // Write SDI_Addr and Koefficients to Memory
     intpar_mem_erase();               // Compact Memory
     intpar_mem_write(ID_INTMEM_SDIADR, 1, (uint8_t *)&my_sdi_adr);

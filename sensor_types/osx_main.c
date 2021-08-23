@@ -71,11 +71,11 @@ int16_t sdi_send_reply_mux(uint8_t isrc) {
   return 1; // Something sent (len not important)
 }
 
-// Build Outstring (Regarding max length 35/75.. todo)
+// Build Outstring (Regarding max length 35/75.. *todo*)
 void sensor_build_outstring(void) {
   uint8_t didx = 0;
   uint16_t rlen = 0, hlen;
-  uint16_t cmd_max_len = 35; /** For M-CMD, othes: todo **/
+  uint16_t cmd_max_len = 35; /** For M-CMD, othes: *todo* **/
   for (uint16_t i = 0; i < MAX_CHAN; i++) {
     if (i >= sdi_valio.anz_channels) {
       sdi_valio.channel_val[i].didx = -1;
@@ -86,6 +86,7 @@ void sensor_build_outstring(void) {
       rlen = 0;
       didx++;
     }
+    rlen+=hlen;
     sdi_valio.channel_val[i].didx = didx;
   }
 }

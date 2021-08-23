@@ -14,6 +14,16 @@
 * that are encoded here in an uint32 (in LE Format)
 * See Docu!
 *
+* This Sensor is very flexible, but (could be) quite difficult for the setup.
+* We use it for;
+* - Very precise PT100 measures (-70..+120 oC), Precision <0.1 oC over complete range!
+* - 0/4-20 mA
+* - Bridge sensors (load/pressure cells)
+* - (Solar) Radiation sensors
+* - ...
+*
+* *todo* make Factory Parameters ad_physkan[] editable/NVM
+*
 * (internal) Errors:
 * // 0x80000000 - 0x800000FF ('xxx < -2147483392' as int32) reserved for Error codes
 * 0x80000000: AD Timeout
@@ -110,7 +120,7 @@
 // ===Some tested configurations End ===
 
 
-#define ANZ_ad_physkan 8   // max. 8 Physical Channels, accesible via M2, M3, .. (max.) M9
+#define ANZ_AD_PHYSKAN 8   // max. 8 Physical Channels, accesible via M2, M3, .. (max.) M9
 typedef struct {
   uint8_t typ;          // 1 How to measure (0: not enabled)
   uint32_t ad_config;   // 4 Config-Registers
@@ -127,7 +137,7 @@ typedef struct {
 #define P_TYP_PT100_A 2  // PT100 via 2k REF and IDAC and Linearisation, Res: oC
 #define P_TYP_STD 3     // Standard AD, Res; mV od CNTs
 
-AD_PHYSKAN ad_physkan[ANZ_ad_physkan]={
+AD_PHYSKAN ad_physkan[ANZ_AD_PHYSKAN]={
 /*0*/  {1, ITEMP_CONFIG, ITEMP_DELAY, ITEMP_MITTEL, ITEMP_KALI, "oC", 1.0, 0.0, ITEMP_TIME},
 /*1*/  {2, PT100_CONFIG, PT100_DELAY, PT100_MITTEL, PT100_KALI, "oC", 1.0, 0.0, PT100_TIME},
 
@@ -150,12 +160,26 @@ AD_PHYSKAN ad_physkan[ANZ_ad_physkan]={
   fval*=param->factor; // Def. 1.0
   fval-=param->offset; // Def. 0.0
 */
-#define ANZ_KOEFF (ANZ_ad_physkan*2)
+#define ANZ_KOEFF (ANZ_AD_PHYSKAN*2)
+#define MAX_IUNIT 8
 typedef struct {
-  float koeff[ANZ_KOEFF];
+  float koeff[ANZ_KOEFF]; // 2 Koeffs for each cahannel
+  uint8_t m0_mask;  // Set One Bit for each Phys Channel (Bit 0 equals 'M2')
+  uint8_t precision[ANZ_AD_PHYSKAN];  // No. of Digits 0..9 (only 0-6,9 relevant)
+  struct{
+    char s[MAX_IUNIT+1];      // Use only if LEN>0
+  } ind_unit[ANZ_AD_PHYSKAN];
 } PARAM;
+
+// 10 Formats for sprintf
+const char *s_formats[10]={"%+.0f","%+.1f","%+.2f","%+.3f","%+.4f","%+.5f","%+.6f","%+f","%+f","%+f"};
+
 //USER Parameters, individual Kalibrations!
-PARAM param = {{1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0}};
+PARAM param = {{1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0},
+                79, // 0x4F 01001111: Measure iTemp, pt100, SE A0, SE A1, DE A1/A0
+               {2,3,9,9,9,9,9,9},
+               {"oC_i","oC_pt","","","","","",""},
+              };
 
 
 //------------------- Implementation -----------
@@ -177,6 +201,7 @@ static nrfx_spim_config_t spi_config = NRFX_SPIM_DEFAULT_CONFIG;
 static uint8_t spi_out[MAX_SPI_IO];
 static uint8_t spi_in[MAX_SPI_IO];
 
+#define WAIT_ADINIT 50  // 50 msec
 static int16_t ad_spi_init(void){
     if(spi_init_flag==true) return 0;  // Already init
 
@@ -194,7 +219,7 @@ static int16_t ad_spi_init(void){
     nrf_gpio_cfg(FPIN_PWR_PIN,NRF_GPIO_PIN_DIR_OUTPUT,NRF_GPIO_PIN_INPUT_DISCONNECT,NRF_GPIO_PIN_NOPULL,
       NRF_GPIO_PIN_S0H1 /*High Out*/, NRF_GPIO_PIN_NOSENSE);
     nrf_gpio_pin_set(FPIN_PWR_PIN);
-    tb_delay_ms(50);  // Wait until stable
+    tb_delay_ms(WAIT_ADINIT);  // Wait until stable
     spi_init_flag=true;
     return 0;
 }
@@ -330,7 +355,7 @@ int32_t get_analog_channel(uint8_t pidx, float *perg){
   AD_PHYSKAN *pkan;
   int32_t res;
   float fres;
-  if(pidx>=ANZ_ad_physkan) return 0x80000002; 
+  if(pidx>=ANZ_AD_PHYSKAN) return 0x80000002; 
   pkan = &ad_physkan[pidx];
   switch(pkan->typ){
   case P_TYP_ITEMP: // 1 Internal Temperature
@@ -419,6 +444,8 @@ void sensor_init(void) {
 
 }
 
+#define WAIT_MS 1 // At least 1 msec to Scan for REPS
+
 bool sensor_valio_input(char cmd, uint8_t carg) {
   sdi_valio.measure_cmd = cmd;
   sdi_valio.measure_arg = carg;
@@ -427,38 +454,79 @@ bool sensor_valio_input(char cmd, uint8_t carg) {
   // For THIS sensor:
   if (cmd != 'M')
     return false; // This sensor only supports M, M1
-  if (carg == 0) {
-    sdi_valio.anz_channels = 2;
-    sdi_valio.m_msec = 500;
-  } else if (carg == 1) {
-    sdi_valio.anz_channels = 3;
-    sdi_valio.m_msec = 1000;
-  } else
-    return false;
+  if (carg <2) {
+    uint16_t sum_ms=WAIT_ADINIT+WAIT_MS;
+    uint16_t anz_chans=0;
+    for(uint16_t i=0;i<ANZ_AD_PHYSKAN;i++){
+      if(param.m0_mask & (1<<i)){
+        anz_chans++;
+        sum_ms+=ad_physkan[i].delay_ms+ad_physkan[i].true_msec;
+      }
+    }
+    if(carg == 1){  // With V_BAT
+      anz_chans++;
+      sum_ms += 10;
+    }
+    sdi_valio.anz_channels = anz_chans;
+    sdi_valio.m_msec = sum_ms;
+  } else if(carg>=2 && carg<=(2+ANZ_AD_PHYSKAN)){  // M2-(M9)
+    carg -=2;
+    sdi_valio.anz_channels = 1;
+    sdi_valio.m_msec = WAIT_ADINIT+WAIT_MS + ad_physkan[carg].delay_ms+ad_physkan[carg].true_msec;
+
+  } else  return false;
 
   return true;
 }
 //
-#define WAIT_MS 500
 int16_t sensor_valio_measure(uint8_t isrc) {
   //---- 'M': While waiting: scan SDI for <BREAK> ----
-  int16_t res;
+  float fval;
+  int32_t res;
+
+  ad_spi_init();
+  ad_reset();
 
   res = sensor_wait_break(isrc, WAIT_MS);
-  if (res)
+  if (res){
+    ad_spi_close(); // Measure aborted
     return res;
-
+  }
   // --- 'm' Wait end
 
-  snprintf(sdi_valio.channel_val[0].txt, 11, "%+f", (float)tb_time_get() / 3333.3);
-  sdi_valio.channel_val[0].punit = "xtime";
-  snprintf(sdi_valio.channel_val[1].txt, 11, "+%u", tb_get_ticks() % 1000000); // '+* only d/f
-  sdi_valio.channel_val[1].punit = "cnt";
+  if(sdi_valio.measure_arg>=2){ // Only 1 Channel for M2-M9
+    fval=-9999;
+    get_analog_channel(sdi_valio.measure_arg-2, &fval);
+    snprintf(sdi_valio.channel_val[0].txt, 11, "%+f", fval);
+    sdi_valio.channel_val[0].punit = ad_physkan[sdi_valio.measure_arg-2].unit;
+    ad_spi_close(); // Done
+  }else{ // M0, M1: Multichannel
+    uint16_t chan_idx=0;
+    const char* pformat;
+    for(uint16_t i=0;i<ANZ_AD_PHYSKAN;i++){
+      if(param.m0_mask & (1<<i)){
+        fval=-9999;
+        res = get_analog_channel(i, &fval);
+        if(res>=-2147483392){  // Result OK, Use indivdual linearsation
+            fval *= param.koeff[i*2]; // Def. 1.0
+            fval -= param.koeff[i*2+1]; // Def. 0.0
+        }
+        pformat=s_formats[param.precision[i]];
+        snprintf(sdi_valio.channel_val[chan_idx].txt, 11, pformat, fval);
+        // Use Default or individual unit
+        if(strlen(param.ind_unit[i].s)) sdi_valio.channel_val[chan_idx].punit = param.ind_unit[i].s;
+        else sdi_valio.channel_val[chan_idx].punit = ad_physkan[i].unit;
+        chan_idx++;
+      }
+    }
+    if(sdi_valio.measure_arg == 1){  // With V_BAT
+      snprintf(sdi_valio.channel_val[chan_idx].txt, 11, "%+.2f", get_vbat_aio()); // Only 2 digits
+      sdi_valio.channel_val[chan_idx].punit = "VSup";
+    }
 
-  if (sdi_valio.measure_arg) {
-    snprintf(sdi_valio.channel_val[2].txt, 11, "%+.2f", get_vbat_aio()); // Only 2 digits
-    sdi_valio.channel_val[2].punit = "VSup";
+    ad_spi_close(); // Done
   }
+
   return 0;
 }
 
@@ -470,19 +538,65 @@ int16_t sensor_valio_measure(uint8_t isrc) {
 void sensor_valio_xcmd(uint8_t isrc, char *pc) {
   uint16_t pidx;
   float fval;
-
+  uint16_t mask;
+  uint8_t prec;
+  char* hpn;
   if (*pc == 'K') { // Kn! or Kn=val!
     pidx = (uint16_t)strtoul(pc + 1, &pc, 0);
-    if (pidx > ANZ_KOEFF)
+    if (pidx >= ANZ_KOEFF)
       return;
+    fval = param.koeff[pidx];
     if (*pc == '=') { // Set Koeff
       fval = strtof(pc + 1, &pc);
-      param.koeff[pidx] = fval;
+    }
+    if (*pc != '!')  return;
+    // Send Koeffs
+    param.koeff[pidx] = fval;
+    sprintf(outrs_buf, "%cK%d=%f", my_sdi_adr, pidx, fval);
+
+  // ===Special to ADS1220-Sensor: Mask, Units and Resolution===
+  }else if (*pc == 'B') { // Bitmask XB or XB=
+    pc++;
+    mask=param.m0_mask;
+    if (*pc == '=') { // Set Mask
+      mask = strtoul(pc + 1, &pc,10);
+      if(!mask || mask>255) return; // Invalid
     }
     if (*pc != '!')
       return;
+    param.m0_mask=mask;
+    // Send Mask
+    sprintf(outrs_buf, "%cB=%u", my_sdi_adr, mask);
+  }else if (*pc == 'U') { // Un! or Un=unit!
+    pidx = (uint16_t)strtoul(pc + 1, &pc, 0);
+    if (pidx >= ANZ_AD_PHYSKAN)
+      return;
+    if (*pc == '=') { // Set Koeff
+       hpn=pc+1;
+    }else hpn=NULL;
+    while(*pc && *pc!='!') pc++;
+    if (*pc != '!')
+      return;
+    if(hpn) {
+      *pc=0;  // Remove trailing '!'
+      strncpy(param.ind_unit[pidx].s,hpn,MAX_IUNIT);
+    }
+    // Show Unit or ''
+    sprintf(outrs_buf, "%cU%d='%s'", my_sdi_adr, pidx, param.ind_unit[pidx].s);
+  }else if (*pc == 'P') { // Pn! or Pn=val! Precision
+    pidx = (uint16_t)strtoul(pc + 1, &pc, 0);
+    if (pidx >= ANZ_AD_PHYSKAN)
+      return;
+     prec = param.precision[pidx];
+    if (*pc == '=') { // Set Koeff
+      prec = strtoul(pc + 1, &pc,10);
+      if(prec>9) return; // Invalid
+    }
+    if (*pc != '!')  return;
     // Send Koeffs
-    sprintf(outrs_buf, "%cK%d=%f", my_sdi_adr, pidx, param.koeff[pidx]);
+    param.precision[pidx] = prec;
+
+    sprintf(outrs_buf, "%cP%d=%u", my_sdi_adr, pidx, prec);
   } else if (!strcmp(pc, "Write!")) { // Write SDI_Addr and Koefficients to Memory
     intpar_mem_erase();               // Compact Memory
     intpar_mem_write(ID_INTMEM_SDIADR, 1, (uint8_t *)&my_sdi_adr);
