@@ -39,9 +39,15 @@ static const nrf_drv_twi_t m_twi = NRF_DRV_TWI_INSTANCE(TWI_INSTANCE_ID);
 int16_t ltx_i2c_init(void){
     ret_code_t err_code;
 
+#if !defined(I2C_100KHZ_DIV) // in device.h
+  //#define I2C_SPEED  NRF_DRV_TWI_FREQ_100K
+  #define I2C_SPEED  (NRF_DRV_TWI_FREQ_100K/50) // Langsame Flanken zum ***TEST***
+#else
+  #define I2C_SPEED  (NRF_DRV_TWI_FREQ_100K/I2C_100KHZ_DIV)
+#endif
+
     nrf_drv_twi_config_t twi_i2c_config = {
-       .frequency          = NRF_DRV_TWI_FREQ_100K, 
-        //.frequency          = NRF_DRV_TWI_FREQ_100K/10, // Langsame Flangen zum ***TEST***
+       .frequency          = I2C_SPEED, 
        .interrupt_priority = APP_IRQ_PRIORITY_HIGH,
        .clear_bus_init     = true // changed 8/21 to true
     };
@@ -67,27 +73,35 @@ void ltx_i2c_uninit(bool ena_pullups){
     }
 }
 
-//------ Einfach SCAN-Routine I2C (Hier R LIS12H-WhoAmI) ----------
-void ltx_i2c_scan(bool fl_read, bool ena_pullups){
+//------ Einfach SCAN-Routine I2C R,RW,W (Hier R LIS12H-WhoAmI) ----------
+void ltx_i2c_scan(uint8_t dir, bool ena_pullups){
     uint8_t i;
     int32_t res;
-    tb_printf("---I2C-Scan Mode:%c---\n",fl_read?'R':'W');
-    ltx_i2c_init();
-    for(i=0;i<127;i++){
-      if(fl_read){
-        res=i2c_write_blk(i,0);  // (Alt. A) Achtung: Read nicht nehmen, kann haengen (zieht dann irgendein Sensor SDA runter)
-      }else{
-        i2c_uni_txBuffer[0]=0x0F; // WhoAmI (Alt. B)
-        res=i2c_readwrite_blk_wt(i,1,1,0); // (Alt. B)
+    tb_printf("---Scan I2C - M(W,RW,R):%u ---\n", dir);
+    tb_printf("Start (Exit: <Key>)\n");
+    res=ltx_i2c_init();
+    if(!res){
+      for(i=0;i<127;i++){
+        if(dir==0){
+          res=i2c_write_blk(i,0);  // (Alt. A) Achtung: Read nicht nehmen, kann haengen (zieht dann irgendein Sensor SDA runter)
+        }else if(dir==1){
+          i2c_uni_txBuffer[0]=0x0F; // WhoAmI (Alt. B) mit Repeated Start!
+          res=i2c_readwrite_blk_wt(i,1,1,0); // (Alt. B)
+        }else if(dir==2){
+          res=i2c_read_blk(i,1);  // (Alt. C) ReadOnly
+        }else break;            // Unknown Scan CMD
+        if(res>=0) tb_printf("\nADDR %d: %u\n",i,res);
+        else if(res==-ERROR_HW_WRITE_NO_REPLY || res==-ERROR_HW_READ_NO_REPLY) tb_printf("-"); // No Reply
+        else tb_printf("(%d)",res); // Reply Code
+        tb_delay_ms(1);
+        if(tb_getc()>0) break;
       }
-      if(res>=0) tb_printf("\nADDR %d: %u\n",i,res);
-      else if(res==-10) tb_printf(".");
-      else tb_printf("(%d)",res);
-      tb_delay_ms(1);
-    }
-    ltx_i2c_uninit(ena_pullups);
+      ltx_i2c_uninit(false);
+    }else tb_printf("I2C Init:%d\n",res);
     tb_printf("\n---OK---\n");
 }
+
+
 
 //-------------------------------- Fkts START ---------------------------------
 // 2 Universelle I2C-Puffer
@@ -144,5 +158,3 @@ int32_t i2c_readwrite_blk_wt(uint8_t i2c_addr, uint8_t anz_w, uint8_t anz_r, uin
 }
 
 //***
-
-// ***

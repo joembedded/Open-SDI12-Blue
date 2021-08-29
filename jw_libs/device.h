@@ -11,7 +11,7 @@
 //#define DEVICE_TYP  330 // *** Frequency Counter ***
 //#define DEVICE_TYP  340 // *** Sensirion SHT2x Temperature/Humidity ***
 //#define DEVICE_TYP  350 // *** 24Bit A/D-Converter ADS1220  ***
-
+//#define DEVICE_TYP  360 // *** EE08 - Precise Temperature/Humidity Sensor
 
 // Features
 #if DEVICE_TYP == 200
@@ -61,6 +61,14 @@
   // *** 24Bit A/D-Converter ADS1220  ***
   //#define HAS_FS // has NO Filesystem!
   #define ENABLE_BLE // Wenn definiert SD anwerfen fuer IRQs
+  #define DEVICE_FW_VERSION 1 // Release in Steps of 10 (35 == V3.5, 1: V0.1) // FW_VWEION uns TYP wird vei CONTENT mitgeschickt
+#endif
+
+#if DEVICE_TYP == 360
+  // *** EE08 - Precise Temperature/Humidity Sensor
+  //#define HAS_FS // has NO Filesystem!
+  #define ENABLE_BLE // Wenn definiert SD anwerfen fuer IRQs
+  #define I2C_100KHZ_DIV 20 // EE08 has VERY Slow I2C Bus (ca. 5kHz)
   #define DEVICE_FW_VERSION 1 // Release in Steps of 10 (35 == V3.5, 1: V0.1) // FW_VWEION uns TYP wird vei CONTENT mitgeschickt
 #endif
 

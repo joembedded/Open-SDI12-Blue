@@ -61,7 +61,7 @@ PARAM param = {{1.0, 0.0, 1.001, 0.22}};
 bool debug_tb_cmdline(uint8_t *pc, uint32_t val){
   switch (*pc) {
   case 'S': // Often useful
-    ltx_i2c_scan((bool)val, false); // 0:W,1:R  NoPU */
+    ltx_i2c_scan(val, false); // 0:W,1:R  NoPU */
     break;
   //====== TEST COMMANDS FOR NEW SENSOR START_S ========
   case 'a':

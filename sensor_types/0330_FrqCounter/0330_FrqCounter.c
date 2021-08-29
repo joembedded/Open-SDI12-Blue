@@ -207,7 +207,7 @@ int16_t cnt_vals_get(void) {
 bool debug_tb_cmdline(uint8_t *pc, uint32_t val){
   switch (*pc) {
   case 'S': // Often useful
-    ltx_i2c_scan((bool)val, false); // 0:W,1:R  NoPU */
+    ltx_i2c_scan(val, false); // 0:W,1:R  NoPU */
     break;
   //====== TEST COMMANDS FOR NEW SENSOR START_S ========
   case 'a':
