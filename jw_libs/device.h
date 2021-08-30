@@ -14,6 +14,7 @@
 //#define DEVICE_TYP  360 // *** EE08 - Precise Temperature/Humidity Sensor
 
 // Features
+// ---Bootloaders---
 #if DEVICE_TYP == 200
   // Div. LTX-Tracker/LTX-Pegel BLE-User-"Device for Bootloader" - Minimalversion fuer Sensoren OHNE Speicher
   // Der BLE-Bootloader kann garnix, NUR (opt.) Disk, Terminal und BLE, damit kann man aber andere Firmware nachladen
@@ -22,6 +23,7 @@
   #define DEVICE_FW_VERSION 1 // Release in Steps of 10 (35 == V3.5, 1: V0.1) // FW_VWEION uns TYP wird vei CONTENT mitgeschickt
 #endif
 
+// ---Sensors---
 #if DEVICE_TYP == 300
   // *** Pewatron_Ceramic Pressure Sensor KKD18 ***
   //#define HAS_FS // has NO Filesystem!
