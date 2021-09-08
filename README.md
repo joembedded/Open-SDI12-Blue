@@ -42,9 +42,9 @@ Real World Project with Barometric Pressure Sensor MS5607:
 
 !['ANNA_SDI'](./Img/baro_320.jpg)
 
-Real World Project with Temperature/Humidity Sensor SHT21 (3D-printed):
+Select Temperature/Humidity: either Sensor SHT21 (3D-printed) or Industrial EE08:
 
-!['SHT21'](./Img/sht21_3d_340.jpg)
+!['SHT21 EE08'](./Img/sht21_3d_340_ee08_360.jpg)
 
 ## Companion Project(s): ##
 !['SDI12Term'](./Img/sdi12term_kl.jpg)
