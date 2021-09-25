@@ -221,8 +221,8 @@ int16_t sensor_valio_measure(uint8_t isrc) {
   sdi_valio.channel_val[0].punit = "Bar";
   if (!res) {
     fval = kkd_vals.pressure;
-    fval *= param.koeff[2]; // Def. 1.0
-    fval -= param.koeff[3]; // Def. 0.0
+    fval *= param.koeff[0]; // Def. 1.0
+    fval -= param.koeff[1]; // Def. 0.0
   } else {
     fval = -1000 + res; // Error..
   }
@@ -231,8 +231,8 @@ int16_t sensor_valio_measure(uint8_t isrc) {
   sdi_valio.channel_val[1].punit = "oC";
   if (!res) {
     fval = kkd_vals.temperature;
-    fval *= param.koeff[0]; // Def. 1.0
-    fval -= param.koeff[1]; // Def. 0.0
+    fval *= param.koeff[2]; // Def. 1.0
+    fval -= param.koeff[3]; // Def. 0.0
   } else {
     fval = res; // Error..
   }

@@ -895,12 +895,12 @@ static void parse_and_reply_bleterm(void) {
     case '/': // Mehr infos plus CPU, get **Default-PIN**
 #if DEVICE_TYP >= 300  // Pin-Check nur fuer echte Anwendungen oder echte Sensoren
         pin_ok = false;
-        if(!strcmp(pc,SECRET_GLOBALPIN)){  // *** SECRET Backdoor Password, defined in ltx_ble.secret ***
-          ;;
-        }else{
-          val = get_pin();
-          if(val) { // >0 Bootloader present => PIN found => Check
-            if(val!=strtoul(pc, 0, 0)){  // Test PIN
+        val = get_pin();
+        if(val) { // >0 Bootloader present => PIN found => Check
+          if(!strcmp(pc,SECRET_GLOBALPIN)){  // *** SECRET Backdoor Password, defined in ltx_ble.secret ***
+            ;;
+          }else{
+              if(val!=strtoul(pc, 0, 0)){  // Test PIN
               strcpy(parse_obuf, "~E");  // Pin ERROR
               break;
             }
