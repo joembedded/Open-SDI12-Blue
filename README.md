@@ -19,11 +19,12 @@ Current State:
 - Temperature/Humidity Sensors SHT21 (Device Type 340): stable and tested
 - High-Precision 24-Bit A/D ADS1220 (Device Type 350): stable and tested
 - Precise rugged Temperature/Humidity Sensor EE08 (Device Type 360): stable and tested
+- ToF Distance Sensor TeraRanger Evo (Device Type 370): stable and tested
 
 todo: 
 - Docu
 - More Sensors (planed): 
-  - TOF/LIDAR Sensors for Distance Sensors
+  - other TOF/LIDAR Sensors for Distance Sensors
   - Simple Counter (eg. for Rain Counters)
   - Industrial Grade Particle Sensor (e.g SPS30)
   - ... *** Your contribution to this project is appreciated! ***
@@ -37,6 +38,10 @@ Implementation with u-Blox ANNA-B112:
 Real World Project with KKD-18:
 
 !['ANNA_SDI'](./Img/kkd18_300.jpg)
+
+Real World Project with Time-of-Flight Distance sensor:
+
+!['ANNA_SDI'](./Img/terabee_typ370.jpg)
 
 Real World Project with Barometric Pressure Sensor MS5607:
 
