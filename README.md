@@ -35,13 +35,13 @@ Implementation with u-Blox ANNA-B112:
 
 !['ANNA_SDI'](./hardware/u-Blox_anna-b112/module_0v1.jpg "ANNA-SDI")
 
-Real World Project with KKD-18:
-
-!['ANNA_SDI'](./Img/kkd18_300.jpg)
-
 Real World Project with Time-of-Flight Distance sensor:
 
 !['ANNA_SDI'](./Img/terabee_typ370.jpg)
+
+Real World Project with KKD-18:
+
+!['ANNA_SDI'](./Img/kkd18_300.jpg)
 
 Real World Project with Barometric Pressure Sensor MS5607:
 
