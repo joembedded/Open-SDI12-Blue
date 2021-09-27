@@ -17,7 +17,7 @@
 *   (Switch ON/OFF via I_X2) for UltraLowPower
 * - Sensor-SCL(5): I_SCL
 * - Sensor-SDA(4): I_SDA
-* - Sensor-GND(3): I_GND
+* - Sensor-GND(3 (and opt. 8)): I_GND
 *
 * Errors:
 * -101 No Reply1 from Sensor
