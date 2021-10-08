@@ -80,7 +80,7 @@ This project was sponsered and supported by:
 Link: [TerraTransfer GmbH, Bochum, Germany](https://www.terratransfer.org)
 
 # Installation
-- Built with SES (V5.xx) and SDK 17.0.2
+- Built with SES (V5.xx) and SDK 17.x.x
 - Based on JesFs 
 
 Use this Directory Structure:
