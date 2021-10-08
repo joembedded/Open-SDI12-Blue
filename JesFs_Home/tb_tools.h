@@ -24,8 +24,10 @@ bool tb_is_wd_init(void);
 
 void tb_delay_ms(uint32_t msec); // --- Lower power delay than nrf_delay
 
-uint32_t tb_get_ticks(void);
+uint32_t tb_get_runtime(void);   // This timer ALWAYS increments sec and is only set on Reset
+uint32_t tb_get_ticks(void);    // System dependant for precise short periods (<1h)
 uint32_t tb_deltaticks_to_ms(uint32_t t0, uint32_t t1);
+uint32_t tb_runtime2time(uint32_t run_secs);
 
 uint32_t tb_time_get(void); // ---- Unix-Timer. Must be called periodically to work, but at least twice per RTC-overflow ---
 void tb_time_set(uint32_t new_secs); // Set time, regarding the timer
@@ -43,7 +45,7 @@ int16_t tb_uart_init(void *pcomm_params, uint8_t *prx_buf, uint16_t rx_buf_size,
 int16_t tb_uart_uninit(void);
 
 
-#ifdef NRF52
+#if defined(NRF52) || defined(PLATFORM_NRF52)
 // Debug-Fkt to show Pin Config
 void tb_dbg_pinview(uint32_t pin_number);
 // Novo contains 4 uint32 to keep time and track software for post-mortem

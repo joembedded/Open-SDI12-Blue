@@ -11,6 +11,8 @@
 * - Test Sensor Access in ApplicSensor/xxx_newsensor.c -> DEBUG (debug_tb_cmdline())
 *   via local UART until it works
 *
+* SDI-12 V1.3 compatibility was tested with the SDI-12 Verifier V5.1.0.4 (sdi-12-verifier.com)
+*
 ***************************************************/
 
 #include <stdbool.h>
@@ -37,10 +39,9 @@
 #include "intmem.h"
 
 // ---Globals---
-bool type_irq_wake_flag=false;  // Flag indicates Wake by IRQ, set extern
+bool type_irq_wake_flag=false;  // Flag indicates Wake by IRQ, set extern Reg. e.g. for FRQ-Counter
 
 char my_sdi_adr = '0'; // Factory Default
-char outrs_buf[MAX_OUTBUF];
 SDI_VALIO sdi_valio;
 
 // ===Sensor Part Start ===
@@ -55,15 +56,15 @@ char sensor_id[8 + 6 + 3 + 13 + 1] = "JoEmbedd"
 int16_t sdi_send_reply_mux(uint8_t isrc) {
   switch (isrc) {
   case SRC_SDI:
-    return sdi_send_reply_crlf(outrs_buf); // send SDI_OBUF chars
+    return sdi_send_reply_crlf(); // send sdi_obuf[] chars
   case SRC_CMDLINE:
-    tb_printf("%s<CR><LF>", outrs_buf);
+    tb_printf("%s<CR><LF>", sdi_obuf);
     break;
 #ifdef ENABLE_BLE
   case SRC_BLE: {
     bool oldr = ble_reliable_printf;
     ble_reliable_printf = true;
-    ble_printf("%s<CR><LF>", outrs_buf);
+    ble_printf("%s<CR><LF>", sdi_obuf);
     ble_reliable_printf = oldr;
   } break;
 #endif
@@ -97,21 +98,15 @@ int16_t sensor_cmd_m(uint8_t isrc, uint8_t carg) {
   if (sensor_valio_input('M', carg) == false)
     return 0; // Cmd not supported
 
-  if (isrc == SRC_SDI)
-    tb_delay_ms(9); // Default Delay after CMD
-
   // CHannel '0'-'9' , then ASCII
-  sprintf(outrs_buf, "%c%03u%c", my_sdi_adr, (sdi_valio.m_msec + 999) / 1000, sdi_valio.anz_channels + '0'); // M: y Measures in xxx secs
+  sprintf(sdi_obuf, "%c%03u%c", my_sdi_adr, (sdi_valio.m_msec + 999) / 1000, sdi_valio.anz_channels + '0'); // M: y Measures in xxx secs
   sdi_send_reply_mux(isrc);                                                                                  // send SDI_OBUF
 
   if (sensor_valio_measure(isrc) < 0)
     return 0; // Aborted
   sensor_build_outstring();
 
-  sprintf(outrs_buf, "%c", my_sdi_adr); // Service Request
-  sdi_send_reply_mux(isrc);             // send SDI_OBUF
-
-  *outrs_buf = 0; // Assume no reply
+  sprintf(sdi_obuf, "%c", my_sdi_adr); // Service Request
   return 1;       // Cmd was OK
 }
 
@@ -145,9 +140,10 @@ int16_t sensor_wait_break(uint8_t isrc, int16_t wt){
 
 //----- SDI-RX-Pin-IRQ-Driver ------------
 bool rxirq_active;
-volatile uint32_t rxirq_zcnt;
+uint32_t irq_cnt;
+
 /*irq*/ static void rxirq_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action) {
-  rxirq_zcnt++;
+    irq_cnt++;
 }
 
 // Set/Unset RX-Pin to "IRQ-on-BREAK", opt. deactivate SDI-UART, Details: see gpio_irq.c-Sample
@@ -160,6 +156,7 @@ static void rxirq_on(void) {
   APP_ERROR_CHECK(err_code);
   nrf_drv_gpiote_in_event_enable(SDI_RX_PIN, true);
   rxirq_active = true;
+  irq_cnt = 0;
 }
 static void rxirq_off(void) {
   if (!rxirq_active)
@@ -184,27 +181,32 @@ void type_init(void) {
 // Static parts of CMDs
 static bool cmdcrc_flag = false;
 
-// Flexible cmd. 0: No Reply
+// Flexible cmd
+// 0: No Reply, Wrong Address or Illegal Cmd: Immedate Low Power
+// 
 int16_t sdi_process_cmd(uint8_t isrc, char *const ps_ibuf) {
   char *pc, arg_val0;
   int8_t i8h; // Temp
   uint16_t crc16;
   uint16_t len;
 
-  *outrs_buf = 0; // Assume no reply
   len = strlen(ps_ibuf);
   if (len && ps_ibuf[len - 1] == '!' && // Only Commands (end with '!')
       (*ps_ibuf == '?' || *ps_ibuf == my_sdi_adr)) {
 
+    *sdi_obuf = 0; // Assume no reply
+    sdi_tx_delay = 8; // Wait ms before sending reply
+   
+    *sdi_obuf = 0; // Assume no reply
     // Fast scan CMD via switch() - reply only to valid CMDs
     switch (ps_ibuf[1]) {
     case '!': // Only "!\0"
       if (!ps_ibuf[2])
-        sprintf(outrs_buf, "%c", my_sdi_adr);
+        sprintf(sdi_obuf, "%c", my_sdi_adr);
       break;
     case 'I': // SDI V1.3
       if (!strcmp(ps_ibuf + 2, "!"))
-        sprintf(outrs_buf, "%c13%s", my_sdi_adr, sensor_id);
+        sprintf(sdi_obuf, "%c13%s", my_sdi_adr, sensor_id);
       break;
     case 'A':
       arg_val0 = ps_ibuf[2];
@@ -217,7 +219,7 @@ int16_t sdi_process_cmd(uint8_t isrc, char *const ps_ibuf) {
           intpar_mem_read(ID_INTMEM_SDIADR, 1, (uint8_t *)&my_sdi_adr);
         }
 
-        sprintf(outrs_buf, "%c", my_sdi_adr);
+        sprintf(sdi_obuf, "%c", my_sdi_adr);
       }
       break;
     case 'M': // aM!, aMx!, aMC!, aMCx!, pc points after 'M'
@@ -232,14 +234,15 @@ int16_t sdi_process_cmd(uint8_t isrc, char *const ps_ibuf) {
       else
         arg_val0 = (*pc++) - '0';
       if (!strcmp(pc, "!") && arg_val0 >= 0 && arg_val0 <= 9) {
-        sensor_cmd_m(isrc, (uint8_t)arg_val0);
-        return 1;
+        if(!sensor_cmd_m(isrc, (uint8_t)arg_val0)){
+          sprintf(sdi_obuf, "%c0000", my_sdi_adr);
+        } // else Service request in sdi_obuf;
       }
       break;
     case 'D': // D0-D9
       arg_val0 = ps_ibuf[2] - '0';
       if (!strcmp(ps_ibuf + 3, "!") && arg_val0 >= 0 && arg_val0 <= 9) {
-        pc = outrs_buf;
+        pc = sdi_obuf;
         *pc++ = my_sdi_adr;
         *pc = 0;
         for (uint16_t i = 0; i < MAX_CHAN; i++) {
@@ -252,7 +255,7 @@ int16_t sdi_process_cmd(uint8_t isrc, char *const ps_ibuf) {
           }
         }
         if (cmdcrc_flag) {
-          crc16 = sdi_track_crc16(outrs_buf, (pc - outrs_buf), 0 /*Init*/);
+          crc16 = sdi_track_crc16(sdi_obuf, (pc - sdi_obuf), 0 /*Init*/);
           *pc++ = 64 + ((crc16 >> 12) & 63);
           *pc++ = 64 + ((crc16 >> 6) & 63);
           *pc++ = 64 + (crc16 & 63);
@@ -261,16 +264,47 @@ int16_t sdi_process_cmd(uint8_t isrc, char *const ps_ibuf) {
         // Now D-String is ready
       }
       break;
-    case 'X': // 'X'; Additional SDI12 - User Commands
+
+    // Unimplemented Commands for SDI12 V1.3
+    case 'R': // R0-R9 - Continous Measurments
+      pc = ps_ibuf + 2;
+      if (*pc == 'C') {
+        cmdcrc_flag = true;
+        pc++;
+      } else
+        cmdcrc_flag = false;
+      arg_val0 = *pc++ - '0';
+      if (!strcmp(pc, "!") && arg_val0 >= 0 && arg_val0 <= 9) {
+        pc = sdi_obuf;
+        *pc++ = my_sdi_adr;
+        *pc = 0;
+        if (cmdcrc_flag) {
+            crc16 = sdi_track_crc16(sdi_obuf, (pc - sdi_obuf), 0 /*Init*/);
+            *pc++ = 64 + ((crc16 >> 12) & 63);
+            *pc++ = 64 + ((crc16 >> 6) & 63);
+            *pc++ = 64 + (crc16 & 63);
+            *pc = 0;
+        }
+      }
+      break;
+    case 'V': 
+      sprintf(sdi_obuf, "%c0000", my_sdi_adr); // attn
+      break;
+    case 'C':
+      sprintf(sdi_obuf, "%c00000", my_sdi_adr); // attnn
+      break;
+
+    // 'X'; Additional SDI12 - User Commands
+    case 'X': 
       if (!strcmp(ps_ibuf+2, "FactoryReset!")){
         intpar_mem_erase();
-        sprintf(outrs_buf, "%c", my_sdi_adr);
+        sprintf(sdi_obuf, "%c", my_sdi_adr);
         tb_delay_ms(9);           // Default Delay after CMD
         sdi_send_reply_mux(isrc); // send SDI_OBUF
         tb_delay_ms(100);
         tb_system_reset();        // Reset...
       }else if (!strcmp(ps_ibuf+2, "Device!")){
-        pc=outrs_buf;
+        pc=sdi_obuf;
         pc+=sprintf(pc, "%cM:%08X%08X,T:%u,V%u.%u", 
           my_sdi_adr, mac_addr_h, mac_addr_l,
           DEVICE_TYP,DEVICE_FW_VERSION/10,DEVICE_FW_VERSION%10);
@@ -281,48 +315,45 @@ int16_t sdi_process_cmd(uint8_t isrc, char *const ps_ibuf) {
       } // else 
       sensor_valio_xcmd(isrc,ps_ibuf+2);
       break;  
-
-      // default: No Reply!
     } // switch
+    if (*sdi_obuf) return sdi_send_reply_mux(isrc); // send SDI_OBUF
   }
-
-  if (*outrs_buf) {
-    if (isrc == SRC_SDI)
-      tb_delay_ms(9);                // Default Delay after CMD
-    return sdi_send_reply_mux(isrc); // send SDI_OBUF
-  } else {
-    return 0;
-  }
+  return 0;  //No Reply, Wrong Address or Illegal Cmd: Immedate Low Power
 }
 
 bool type_service(void) {
   int16_t res;
-
-  // SDI12 Activity registered
-  if (rxirq_zcnt) {
+  if (irq_cnt) { // SDI12 Activity registered
+    irq_cnt=0;
     rxirq_off();
     tb_putc('['); // Signal SDI12 Activity
-    *outrs_buf = 0;
+    *sdi_obuf = 0;
     tb_delay_ms(1);
     sdi_uart_init();
 
-    for (;;) {
-      tb_board_led_on(0);
-      res = sdi_getcmd(SDI_IBUFS, 100 /*ms*/); // Max. wait per Def.
-      tb_board_led_off(0);
-      if (res == -ERROR_NO_REPLY) {
-        break;              // Timeout
-      } else if (res > 0) { // Soemthing received
-        sdi_process_cmd(SRC_SDI, sdi_ibuf);
-        // And again until No Reply
-      } // else: Only Break or Corrupt Data
-    }   // for()
-
+    for(uint8_t wt=0;wt<12;wt++){ // Break detected max. 9ms after irq
+      res=tb_getc();
+      if(res!=-1) break;  // 0: Minium ASCII0 Break, <-1: Real Breaks
+      tb_delay_ms(1);
+    }
+    if(res==0 || res<-1){
+      for (;;) {
+        tb_board_led_on(0);
+        res = sdi_getcmd(SDI_IBUFS, 100 /*ms*/); // Max. wait per Def.
+        tb_board_led_off(0);
+        if (res <0 ) {
+          res-=1000;          // get-Errors : -2xxx
+          break;              // Timeout or Corrupt Data
+        } else if (res > 0) { // Soemthing received
+          res = sdi_process_cmd(SRC_SDI, sdi_ibuf);
+          if(res <=0 ) break; // End immediately
+          // And again until No Reply
+        }
+      }   // for()
+    }
     sdi_uart_uninit();
     rxirq_on();
-    rxirq_zcnt = 0;
-
-    tb_putc(']'); // Signal SDI12 Activity
+  tb_putc(']'); // Signal SDI12 Activity
     return true;  // No Periodic Service
   }
   // Flag indicates IRQ in type implementation
@@ -363,18 +394,18 @@ bool type_cmdline(uint8_t isrc, uint8_t *pc, uint32_t val) {
       type_cmdprint_line(isrc, "Error('e')");
       break;
     }
-    sprintf(outrs_buf, "~e:%u %u", sdi_valio.anz_channels, sdi_valio.m_msec);
-    type_cmdprint_line(isrc, outrs_buf);
+    sprintf(sdi_obuf, "~e:%u %u", sdi_valio.anz_channels, sdi_valio.m_msec);
+    type_cmdprint_line(isrc, sdi_obuf);
     sensor_valio_measure(SRC_NONE); // SLient
     for (int16_t i = 0; i < sdi_valio.anz_channels; i++) {
       char *pc = sdi_valio.channel_val[i].txt;
       if (*pc == '+')
         pc++;
-      sprintf(outrs_buf, "~#%u: %s %s", i, pc, sdi_valio.channel_val[i].punit);
-      type_cmdprint_line(isrc, outrs_buf);
+      sprintf(sdi_obuf, "~#%u: %s %s", i, pc, sdi_valio.channel_val[i].punit);
+      type_cmdprint_line(isrc, sdi_obuf);
     }
-    sprintf(outrs_buf, "~h:%u\n", 0); // Reset, Alarm, alter Alarm, Messwert, ..
-    type_cmdprint_line(isrc, outrs_buf);
+    sprintf(sdi_obuf, "~h:%u\n", 0); // Reset, Alarm, alter Alarm, Messwert, ..
+    type_cmdprint_line(isrc, sdi_obuf);
 
     break;
 

@@ -133,7 +133,7 @@
     <folder Name="ApplicSensor">
       <file file_name="../../../../sensor_types/osx_main.c" />
       <file file_name="../../../../sensor_types/0200_test/0200_testsensor.c">
-        <configuration Name="Debug" build_exclude_from_build="Yes" />
+        <configuration Name="Debug" build_exclude_from_build="No" />
         <configuration Name="Release" build_exclude_from_build="Yes" />
       </file>
       <file file_name="../../../../sensor_types/0300_Pewatron_KKD18/0300_Pewatron_KKD18.c">
@@ -161,7 +161,9 @@
       <file file_name="../../../../sensor_types/0360_EplusE_EE08_TrH/0360_EplusE_EE08_TrH.c">
         <configuration Name="Debug" build_exclude_from_build="Yes" />
       </file>
-      <file file_name="../../../../sensor_types/0370_TeraBee_Evo_Lidar/0370_TeraBee_Evo_Lidar.c" />
+      <file file_name="../../../../sensor_types/0370_TeraBee_Evo_Lidar/0370_TeraBee_Evo_Lidar.c">
+        <configuration Name="Debug" build_exclude_from_build="Yes" />
+      </file>
     </folder>
   </project>
   <configuration

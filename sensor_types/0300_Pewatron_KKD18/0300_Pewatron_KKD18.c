@@ -265,15 +265,15 @@ void sensor_valio_xcmd(uint8_t isrc, char *pc) {
     if (*pc != '!')  return;
     // Send Koeffs
     param.koeff[pidx] = fval;
-    sprintf(outrs_buf, "%cK%d=%f", my_sdi_adr, pidx, fval);
+    sprintf(sdi_obuf, "%cK%d=%f", my_sdi_adr, pidx, fval);
 
   } else if (!strcmp(pc, "Write!")) { // Write SDI_Addr and Koefficients to Memory
     intpar_mem_erase();               // Compact Memory
     intpar_mem_write(ID_INTMEM_SDIADR, 1, (uint8_t *)&my_sdi_adr);
     intpar_mem_write(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
-    sprintf(outrs_buf, "%c", my_sdi_adr); // Standard Reply
+    sprintf(sdi_obuf, "%c", my_sdi_adr); // Standard Reply
   } else if (!strcmp(pc, "Sensor!")) {                                                // Identify Senor
-    sprintf(outrs_buf, "%cKKD18_A,P=%.1f;%.1f!", my_sdi_adr, kkd_koeffs.p_min, kkd_koeffs.p_max); // Standard Reply
+    sprintf(sdi_obuf, "%cKKD18_A,P=%.1f;%.1f!", my_sdi_adr, kkd_koeffs.p_min, kkd_koeffs.p_max); // Standard Reply
   }                                       // else
 }
 

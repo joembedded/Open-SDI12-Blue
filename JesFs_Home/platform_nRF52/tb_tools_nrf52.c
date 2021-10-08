@@ -18,10 +18,12 @@
 * 1.7: 25.02.2020 Added Defines for u-Blox NINA-B3 
 * 2.0: 06.09.2020 Changed UART Driver to APP_UART for Multi-Use
 * 2.01: 08.09.2020 Fixed Error in SDK17 (see tb_tools_nrf52.c-> 'SDK17')
-* 2.02: 23.09.2020 Adapted to SDK17.0.2 (still Problem in 'nrf_drv_clock.c' -> see 'SDK17')
+* 2.02: 23.09.2020 Adapted to SDK17.0.2 (still Problem in 'nrf_drv_clock.c' -> search in this file 'SDK17')
 * 2.11: 16.05.2021 removed 'board.h', small changes in PIN-Names
 * 2.50: 02.07.2021 changed Platform PIN Setup
 * 2.51: 10.07.2021 added 'tb_pins_nrf52.h'
+* 2.54: 06.10.2021 added 'tb_get_runtime()' and 'tb_runtime2time()'
+* 2.55: 06.10.2021 INFO: SDK17.1.0: There is still an Error on nrf_drv_clk.c ( -> search in this file 'SDK17')
 ***************************************************************************************************************/
 
 #include <stdint.h>
@@ -114,6 +116,7 @@ static bool tb_wdt_enabled=false;
 // --- locals timestamp ----
 static uint32_t old_rtc_secs=0; // counts 0...511, Sec-fraction of RTC
 static uint32_t cnt_secs=0;  // To compare
+static uint32_t ux_run_delta=0; // Difference Runtime to Unixtime
 
 static bool tb_basic_init_flag=false; // Always ON, only init once
 
@@ -142,6 +145,7 @@ int16_t tb_putc(char c){
     }
 }
 
+// ---- Test: return 0:Nothing available, -1: ERROR, 1: Char available
 int16_t tb_kbhit(void){
   uint8_t cr;
   if(_tb_uart_init_flag==false) return 0; // Not init = nothing
@@ -152,7 +156,8 @@ int16_t tb_kbhit(void){
   }
   return 0; // nothing
 }
-// ---- get 1 char (0..255) (or -1 if nothing available)
+// ---- get 1 char (0..255) (or -1 if nothing available, or < -1 on Framing Errors)
+// Framing Errors (-2...-xx) see _tb_app_uart_error_handle()
 int16_t tb_getc(void){
   uint8_t cr;
   int16_t ret;
@@ -355,7 +360,16 @@ void tb_init(void){
       ret = nrf_drv_power_init(NULL);
       APP_ERROR_CHECK(ret);
 /* SDK17: ERROR in in "nrf_drv_clock.c -> nrf_drv_clock_init()": 
+*  Reported to NORDIC as 'Case ID: 277657'
 *  Remove:   "if (nrf_wdt_started()) m_clock_cb.lfclk_on = true;" 
+   
+   Remove or disable THIS part: nrf_drv_clock.c (arround line 196-202 in SDK17):
+   // if (nrf_wdt_started())
+   // {
+   //     m_clock_cb.lfclk_on = true;
+   // }
+
+
 */
       ret = nrf_drv_clock_init();
       APP_ERROR_CHECK(ret);
@@ -517,7 +531,7 @@ static void tb_timeout_handler(void * p_context){
 void tb_delay_ms(uint32_t msec){   
 
 #if 0
-#warning "NRF_DELAY SDK16/17-Problem"
+#warning "NRF_DELAY SDK16/SDK17-Problem: LFtimer not init! (-> search in this file 'SDK17')"
 nrf_delay_ms(msec); 
 return;
 #endif
@@ -536,14 +550,28 @@ return;
 }
  
 // ---- Unix-Timer. Must be called periodically to work, but at least twice per RTC-overflow (512..xx secs) ---
-uint32_t tb_time_get(void){
-   uint32_t rtc_secs, ux_secs;
+// New in V2.5: 2 Systemtimers: RUNTIME(sec) and UNIX(secs)
+// Idea: runtime always starts at 0 and altime increases, whereas UNIX time could be set by user.
+uint32_t tb_get_runtime(void){  // This timer ALWAYS increments an is only set on Reset to 0
+   uint32_t rtc_secs, run_secs;
    // RTC will overflow after 512..xx secs - Scale Ticks to seconds
    rtc_secs=app_timer_cnt_get() / (APP_TIMER_CLOCK_FREQ / (APP_TIMER_CONFIG_RTC_FREQUENCY+1)) ;
    if(rtc_secs<old_rtc_secs)  cnt_secs+=(((RTC_COUNTER_COUNTER_Msk)+1)/ (APP_TIMER_CLOCK_FREQ / (APP_TIMER_CONFIG_RTC_FREQUENCY+1))) ;
    old_rtc_secs=rtc_secs; // Save last seen rtc_secs
-   ux_secs=cnt_secs+rtc_secs;
-   // Store alsoto non-init RAM 
+   run_secs=cnt_secs+rtc_secs;
+   return run_secs;
+}
+// Runtime seconds Timestamp to Unix Timestamp
+uint32_t tb_runtime2time(uint32_t run_secs){
+   uint32_t ux_secs;
+   ux_secs = run_secs + ux_run_delta;
+   return ux_secs;
+}
+
+uint32_t tb_time_get(void){ // Last Unix Timestamp is saved in NV memory
+   uint32_t ux_secs;
+   ux_secs = tb_get_runtime() + ux_run_delta;
+   // Store absolute time also to non-init RAM 
    _tb_novo[1]=ux_secs;
    _tb_novo[2]=~ux_secs;
    return ux_secs;
@@ -551,11 +579,10 @@ uint32_t tb_time_get(void){
 
 // Set time, regarding the timer
 void tb_time_set(uint32_t new_secs){
-  tb_time_get(); // update static vars
-  cnt_secs=new_secs-old_rtc_secs;
-   // Store alsoto non-init RAM 
-   _tb_novo[1]=cnt_secs;
-   _tb_novo[2]=~cnt_secs;
+   ux_run_delta = new_secs - tb_get_runtime();
+   // Store also to non-init RAM 
+   _tb_novo[1]=new_secs;
+   _tb_novo[2]=~new_secs;
 }
 
 // ----- clock ticks functions ---------------------

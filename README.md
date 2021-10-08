@@ -6,9 +6,10 @@ _An open implementation for a SDI12 Sensor node, based on Ultra-Low-Power Blueto
 - Use traditional SDII2 Bus or SDI12-Over-BLE to communicate with your Sensor
 - No APP required, use Standard WEB-Blueooth-API (Live demo: [BLE API Live (in Repository LTX BLE Demo)](https://joembedded.github.io/ltx_ble_demo/ble_api/index.html)
 - Optional: Secure Firmware-Updates-over-BLE (via BLE-API), Access Control via PIN, ...
+- For humanitary, private or non-commercial use, this project is free!
 - ...
 
-*** This is Work In Pogress... ***
+*** This is Work In Pogress. If something fails (e.g. casued by changes in the software), please read the comments in the sources ***
 
 Current State:
 - Testsensor (Device Type 200): stable and tested
@@ -84,7 +85,7 @@ Link: [TerraTransfer GmbH, Bochum, Germany](https://www.terratransfer.org)
 
 Use this Directory Structure:
 ```
-C:\nordic\nRF5_SDK_17.0.2
+C:\nordic\nRF5_SDK_17.1.0
 +---components            // SDK
 +---external              // SDK
 +---integration           // SDK

@@ -354,29 +354,29 @@ void sensor_valio_xcmd(uint8_t isrc, char *pc) {
     if (*pc != '!')  return;
     // Send Koeffs
     param.koeff[pidx] = fval;
-    sprintf(outrs_buf, "%cK%d=%f", my_sdi_adr, pidx, fval);
+    sprintf(sdi_obuf, "%cK%d=%f", my_sdi_adr, pidx, fval);
 
   } else if (!strcmp(pc, "Write!")) { // Write SDI_Addr and Koefficients to Memory
     intpar_mem_erase();               // Compact Memory
     intpar_mem_write(ID_INTMEM_SDIADR, 1, (uint8_t *)&my_sdi_adr);
     intpar_mem_write(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
-    sprintf(outrs_buf, "%c", my_sdi_adr);                                             // Standard Reply
+    sprintf(sdi_obuf, "%c", my_sdi_adr);                                             // Standard Reply
   } else if (!strcmp(pc, "Sensor!")) {                                                // Identify Senor
 
-    sprintf(outrs_buf, "%cLD,P:%.1f;%.1f", my_sdi_adr, ld_koeffs.p_min, ld_koeffs.p_max); // Standard Reply
+    sprintf(sdi_obuf, "%cLD,P:%.1f;%.1f", my_sdi_adr, ld_koeffs.p_min, ld_koeffs.p_max); // Standard Reply
     switch (ld_koeffs.mode) {
     case 0:
-      strcat(outrs_buf, ",PR!");
+      strcat(sdi_obuf, ",PR!");
       break;
     case 1:
-      strcat(outrs_buf, ",PA!");
+      strcat(sdi_obuf, ",PA!");
       break;
     case 2:
-      strcat(outrs_buf, ",PAA!");
+      strcat(sdi_obuf, ",PAA!");
       break;
     // All other: Unknown
     default:
-        strcat(outrs_buf, "!");
+        strcat(sdi_obuf, "!");
     }
   } // else
 }

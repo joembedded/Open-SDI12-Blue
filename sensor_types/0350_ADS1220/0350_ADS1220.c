@@ -552,7 +552,7 @@ void sensor_valio_xcmd(uint8_t isrc, char *pc) {
     if (*pc != '!')  return;
     // Send Koeffs
     param.koeff[pidx] = fval;
-    sprintf(outrs_buf, "%cK%d=%f", my_sdi_adr, pidx, fval);
+    sprintf(sdi_obuf, "%cK%d=%f", my_sdi_adr, pidx, fval);
 
   // ===Special to ADS1220-Sensor: Mask, Units and Resolution===
   }else if (*pc == 'B') { // Bitmask XB or XB=
@@ -566,7 +566,7 @@ void sensor_valio_xcmd(uint8_t isrc, char *pc) {
       return;
     param.m0_mask=mask;
     // Send Mask
-    sprintf(outrs_buf, "%cB=%u", my_sdi_adr, mask);
+    sprintf(sdi_obuf, "%cB=%u", my_sdi_adr, mask);
   }else if (*pc == 'U') { // Un! or Un=unit!
     pidx = (uint16_t)strtoul(pc + 1, &pc, 0);
     if (pidx >= ANZ_AD_PHYSKAN)
@@ -582,7 +582,7 @@ void sensor_valio_xcmd(uint8_t isrc, char *pc) {
       strncpy(param.ind_unit[pidx].s,hpn,MAX_IUNIT);
     }
     // Show Unit or ''
-    sprintf(outrs_buf, "%cU%d='%s'", my_sdi_adr, pidx, param.ind_unit[pidx].s);
+    sprintf(sdi_obuf, "%cU%d='%s'", my_sdi_adr, pidx, param.ind_unit[pidx].s);
   }else if (*pc == 'P') { // Pn! or Pn=val! Precision
     pidx = (uint16_t)strtoul(pc + 1, &pc, 0);
     if (pidx >= ANZ_AD_PHYSKAN)
@@ -596,14 +596,14 @@ void sensor_valio_xcmd(uint8_t isrc, char *pc) {
     // Send Koeffs
     param.precision[pidx] = prec;
 
-    sprintf(outrs_buf, "%cP%d=%u", my_sdi_adr, pidx, prec);
+    sprintf(sdi_obuf, "%cP%d=%u", my_sdi_adr, pidx, prec);
   } else if (!strcmp(pc, "Write!")) { // Write SDI_Addr and Koefficients to Memory
     intpar_mem_erase();               // Compact Memory
     intpar_mem_write(ID_INTMEM_SDIADR, 1, (uint8_t *)&my_sdi_adr);
     intpar_mem_write(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
-    sprintf(outrs_buf, "%c", my_sdi_adr);            // Standard Reply
+    sprintf(sdi_obuf, "%c", my_sdi_adr);            // Standard Reply
   } else if (!strcmp(pc, "Sensor!")) {               // Identify Senor
-    sprintf(outrs_buf, "%cADS1220!", my_sdi_adr); // Standard Reply
+    sprintf(sdi_obuf, "%cADS1220!", my_sdi_adr); // Standard Reply
   }                                                  // else ..
 }
 

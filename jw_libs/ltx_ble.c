@@ -18,7 +18,7 @@
 * AENDERUNGEN ausserhalb EIGENE: Suchen nach 'JuergenWickenh'
 * 2 Files betroffen: Kopiert nach "nordic_mods":
 * - components/ble/ble_advertising/ble_advertising.c ca. Zeile 590
-* - components/ble/ble_services/ble_nus/ble_nus.c (2-fach) ca. Zeile 70
+* - components/ble/ble_services/ble_nus/ble_nus.c ca. Zeile 70
 *
 * WENN Filesystem dabei ist, aber nicht verfuegbar gibt es Fehlermeldungen,
 * auch beim Download ins interne CPU-Flash. Noch evtl. *todd* oder als

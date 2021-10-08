@@ -1,27 +1,9 @@
 /*******************************************************************************
-* OPEN-OSX-BLE Minimal -  Mit S112/S113, Achtung: das geht nur bis 4db TX 
+* main.c OPEN-OSX-BLE Minimal -  Mit S112/S113, Achtung: das geht nur bis 4db TX 
 *
-* Hinweise:
-* Defaults (NUS_BASE_UUID): wird in ble_nus_init() gesetzt
-* Details siehe 'ble_uart_wrk_orig'
-*
-* BLE-Transfer in binaeren Bloecken:
-* LEN TOKEN Daten[LEN]  LEN kann 0...(MTU-3) sein
-* TOKEN: 
-
-*  BB_BLE_INFO:       Unsolicited (RSSI) BLE an PC, ohne Retries
-*  BB_BLE_REPLY_END:  ASCII-Terminal Ende-der-Antwort, mit '~' am Anfang: "Unsichtbare/Interpretierte Antwort, mit Retries
-*  BB_BLE_BINBLK_OUT: asBinaerblock, mit Retries
-*  xx 0x12: ASCII-Terminal Zwischenzeilen, mit Retries
-*
-* AENDERUNGEN ausserhalb EIGENE: Suchen nach 'JuergenWickenh'
-* 2 Files betroffen: Kopiert nach "nordic_mods":
-* - components/ble/ble_advertising/ble_advertising.c ca. Zeile 590
-* - components/ble/ble_services/ble_nus/ble_nus.c (2-fach) ca. Zeile 70
-
-*
+* This is only "init"-main(). Sensor implementatioin see 'osx_main.c'
 * (C) joembedded@gmail.com - joembedded.de
-* Version: 
+*
 *
 *******************************************************************************/
 
@@ -83,7 +65,7 @@
 
 //---------------- Periodic_sec Verwaltungsvariablen -----------------
 
-static uint32_t periodic_old_secs; // Letzte Sekunden (gemerkt)
+static uint32_t periodic_osecs; // Letzte Runtime (gemerkt)
 
 uint32_t reset_reason_bits;        // Backup Flags nach Reset vor Memeory Protection
 uint8_t ledflash_flag = 0;    // Radio-Active-Notification/Heartbeat/Etc
@@ -117,11 +99,11 @@ void periodic_secs(void) {
     int16_t res;
 
     // --- Periodic each second ---
-    nsecs = tb_time_get();
-    if (nsecs == periodic_old_secs) {
+    nsecs = tb_get_runtime();
+    if (nsecs == periodic_osecs) {
         return; // War schon in dieser Sekunde.
     }
-    periodic_old_secs = nsecs;
+    periodic_osecs = nsecs;
 
     // Feed Watchdog 1nce/sec
     tb_watchdog_feed(1);
@@ -317,10 +299,10 @@ void uart_cmdline(void) {
             tb_uart_sec_counter = 0;
             break;
 
-        case 'T': // ZEIT holen oder setzen (muss regelmaessig sein)
+        case 'T': // ZEIT holen oder setzen (see notes in tb_tools.c)
           if (val) tb_time_set(val);
           val = tb_time_get();
-          tb_printf("Time: %u\n", val); // Interpret to Date
+          tb_printf("Time: %u, Runtime:%u\n", val,tb_get_runtime() ); 
           break;
 
         case 'R':

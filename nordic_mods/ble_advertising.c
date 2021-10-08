@@ -1,7 +1,7 @@
-/** 
+/**
  * MODIFIZIERT JuergenWickenh ca. Zeile 590 (notifications)
  *
- * Copyright (c) 2015 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) 2015 - 2021, Nordic Semiconductor ASA
  *
  * All rights reserved.
  *
@@ -593,7 +593,6 @@ uint32_t ble_advertising_start(ble_advertising_t * const p_advertising,
 
     // ** JuergenWickenh : MANUELL EINGESETZT, da ueebrschrieben wird **
     p_advertising->adv_params.scan_req_notification=true;
-
 
     p_advertising->adv_params.properties.type = BLE_GAP_ADV_TYPE_CONNECTABLE_SCANNABLE_UNDIRECTED;
 

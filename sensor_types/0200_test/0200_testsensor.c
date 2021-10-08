@@ -122,7 +122,8 @@ int16_t sensor_valio_measure(uint8_t isrc) {
 
   // --- 'm' Wait end
 
-  snprintf(sdi_valio.channel_val[0].txt, 11, "%+f", (float)tb_time_get() / 3333.3);
+  // Attention: Maximum allowed number of chars in value is 9, see Specs
+  snprintf(sdi_valio.channel_val[0].txt, 11, "%+.1f", (float)tb_time_get() / 3333.3);
   sdi_valio.channel_val[0].punit = "xtime";
   snprintf(sdi_valio.channel_val[1].txt, 11, "+%u", tb_get_ticks() % 1000000); // '+* only d/f
   sdi_valio.channel_val[1].punit = "cnt";
@@ -154,15 +155,15 @@ void sensor_valio_xcmd(uint8_t isrc, char *pc) {
     if (*pc != '!')  return;
     // Send Koeffs
     param.koeff[pidx] = fval;
-    sprintf(outrs_buf, "%cK%d=%f", my_sdi_adr, pidx, fval);
+    sprintf(sdi_obuf, "%cK%d=%f", my_sdi_adr, pidx, fval);
 
   } else if (!strcmp(pc, "Write!")) { // Write SDI_Addr and Koefficients to Memory
     intpar_mem_erase();               // Compact Memory
     intpar_mem_write(ID_INTMEM_SDIADR, 1, (uint8_t *)&my_sdi_adr);
     intpar_mem_write(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
-    sprintf(outrs_buf, "%c", my_sdi_adr);            // Standard Reply
+    sprintf(sdi_obuf, "%c", my_sdi_adr);            // Standard Reply
   } else if (!strcmp(pc, "Sensor!")) {               // Identify Senor
-    sprintf(outrs_buf, "%cTestsensor!", my_sdi_adr); // Standard Reply
+    sprintf(sdi_obuf, "%cTestsensor!", my_sdi_adr); // Standard Reply
   }                                                  // else ..
 }
 

@@ -36,9 +36,6 @@ extern char sensor_id[8 + 6 + 3 + 13 + 1];
 #define ID_INTMEM_USER0  100 // First ID for Sensor
 
 extern char my_sdi_adr;
-#define MAX_OUTBUF SDI_OBUFS
-extern char outrs_buf[MAX_OUTBUF];
-
 extern bool type_irq_wake_flag;
 
 #define VMON_CHANNEL            NRF_SAADC_INPUT_AIN7
