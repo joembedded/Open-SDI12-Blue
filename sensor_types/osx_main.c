@@ -329,7 +329,7 @@ bool type_service(void) {
     tb_putc('['); // Signal SDI12 Activity
     *sdi_obuf = 0;
     tb_delay_ms(1);
-    sdi_uart_init();
+    sdi_uart_init(true);
 
     for(uint8_t wt=0;wt<12;wt++){ // Break detected max. 9ms after irq
       res=tb_getc();
@@ -351,7 +351,7 @@ bool type_service(void) {
         }
       }   // for()
     }
-    sdi_uart_uninit();
+    sdi_uart_uninit(true);
     rxirq_on();
   tb_putc(']'); // Signal SDI12 Activity
     return true;  // No Periodic Service

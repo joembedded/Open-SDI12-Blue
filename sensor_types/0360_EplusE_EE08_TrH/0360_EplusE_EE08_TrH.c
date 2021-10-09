@@ -20,9 +20,9 @@
 * Here: EE08 is constantly powered!
 *
 * Connect: 
-* - Red: 	Supply (>= 4.5V see Datasheet, max. 1,5mA)
-* - Green:  X_SCL (use Pullip <= 10k)
-* - Brown:  X_SDA (use Pullip <= 10k)
+* - Red: 	Supply (>= 4.5V see Datasheet, max. 1.5mA)
+* - Green:  X_SCL (use Pullup <= 10k)
+* - Brown:  X_SDA (use Pullup <= 10k)
 * - Pink:	GND
 *
 * Errors:
@@ -47,7 +47,7 @@
 #include "intmem.h"
 
 #if DEBUG
- #include "nrf_drv_gpiote.h"
+ #include "nrf_drv_gpiote.h" // NRF_GPIO_PIN_MAP(x,y)
  #include "i2c.h" // EE08: Own Driver, because SLOW
  #include "nrfx_spim.h"
  #include "nrf_delay.h"
@@ -69,7 +69,7 @@ typedef struct {
   float koeff[ANZ_KOEFF];
 } PARAM;
 // Test Setup for Default Koeffs
-PARAM param = {{1.0, 0.0, 1.001, 0.22}};
+PARAM param = {{1.0, 0.0, 1.0, 0.0}};
 
 //------------------- Implementation -----------
 typedef union{
@@ -186,7 +186,7 @@ void sensor_init(void) {
   // all cccccccc.8 mmmmmm.6 vvv.3 xx..xx.[0-13]
   //  13 JoEmbedd   Testse   OSX   (MAC.l)
   // TT:'TerraTransfer', EE8:'EE08', 'A': Ver A
-  sprintf(sensor_id, "TT_EE8_A_0340_OSX%08X", mac_addr_l);
+  sprintf(sensor_id, "TT_EE8_A_0360_OSX%08X", mac_addr_l);
 
   // Try to read Parameters
   intpar_mem_read(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);

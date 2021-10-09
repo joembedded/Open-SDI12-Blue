@@ -170,21 +170,23 @@ int16_t sdi_send_reply_crlf(void) {
 }
 
 /* Init SDI12-UART, save old status OPTIONAL: mehrere Schnittstellen als Parameter */
-int16_t sdi_uart_init(void) {
+int16_t sdi_uart_init(bool check) {
   int16_t res;
-  _uart_already_init = tb_is_uart_init();
-  if (_uart_already_init)
-    tb_uart_uninit();
+  if(check){  // check for uninit or force uninit
+    _uart_already_init = tb_is_uart_init();
+    if (_uart_already_init) tb_uart_uninit();
+  }else tb_uart_uninit();
   res = tb_uart_init((void *)&_sdi_uart_comm_params, NULL, 0, NULL, 0, -1);
   return res;
 }
 
 /* Disable SDI-UART and opt. enable tb_uart */
-int16_t sdi_uart_uninit(void) {
+int16_t sdi_uart_uninit(bool check) {
   int16_t res;
   res = tb_uart_uninit();
-  if (_uart_already_init)
-    tb_uart_init(NULL, NULL, 0, NULL, 0, -1);
+  if(check){  // check for old init or force init
+    if (_uart_already_init) tb_uart_init(NULL, NULL, 0, NULL, 0, -1);
+  }
   return res;
 }
 

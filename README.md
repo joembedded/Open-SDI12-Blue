@@ -1,15 +1,17 @@
 # Open SDI12-Blue #
-_An open implementation for a SDI12 Sensor node, based on Ultra-Low-Power Bluetooth CPU_
+_An open implementation for a SDI-12 Sensor node, based on Ultra-Low-Power Bluetooth CPU_
 
 ## Features ##
-- Build your own SDI12 V1.3 compatible Ultra-Low-Power Sensor with (often) less than 50 lines of Code
-- Use traditional SDII2 Bus or SDI12-Over-BLE to communicate with your Sensor
+- Build your own SDI-12 V1.3 compatible Ultra-Low-Power Sensor with (often) less than 50 lines of Code
+- Use traditional SDI-12 Bus or SDI12-Over-BLE to communicate with your Sensor
 - No APP required, use Standard WEB-Blueooth-API (Live demo: [BLE API Live (in Repository LTX BLE Demo)](https://joembedded.github.io/ltx_ble_demo/ble_api/index.html)
 - Optional: Secure Firmware-Updates-over-BLE (via BLE-API), Access Control via PIN, ...
 - For humanitary, private or non-commercial use, this project is free!
 - ...
 
-*** This is Work In Pogress. If something fails (e.g. casued by changes in the software), please read the comments in the sources ***
+*** This is Work In Pogress. If something fails (e.g. casued by changes
+*** in the software), please read the comments in the sources.
+*** All sensors have been (basically) tested and SDI-12 V1.3 communication verified
 
 Current State:
 - Testsensor (Device Type 200): stable and tested
@@ -21,6 +23,7 @@ Current State:
 - High-Precision 24-Bit A/D ADS1220 (Device Type 350): stable and tested
 - Precise rugged Temperature/Humidity Sensor EE08 (Device Type 360): stable and tested
 - ToF Distance Sensor TeraRanger Evo (Device Type 370): stable and tested
+- Precise Temperature/Humidity Sensor HC2 (Device Type 380): stable and tested
 
 todo: 
 - Docu
@@ -63,14 +66,14 @@ Link: [BLE API Live (in Repository LTX BLE Demo)](https://joembedded.github.io/l
 
 ## Links ###
 
-Some Facts about SDI12:
-- SDI12 is a very simple protocol, mainly designed for Ultra-Low-Power Meteorolocical and Hydrological Sensors
+Some Facts about SDI-12:
+- SDI-12 is a very simple protocol, mainly designed for Ultra-Low-Power Meteorolocical and Hydrological Sensors
 - It is a simple 3-wire Bus and allows up to 10 (optionally 64) sensor nodes with 500 mtr. total cable length
-- Although SDI12 is now available in V1.4, V1.3 is still sufficient for almost all needs (simply ignore Chapters 5 and 6 in the Specs)
-- SDI12 communicates in a human readable format, a CRC16 can be used optionally
+- Although SDI-12 is now available in V1.4, V1.3 is still sufficient for almost all needs (simply ignore Chapters 5 and 6 in the Specs)
+- SDI-12 communicates in a human readable format, a CRC16 can be used optionally
 - Own Commands can be added very easily (e.g. for Calibration Coeffients)
-- The Open-SDI12-Blue Hardware works from 2.8V(!) to 14V Supply (originally SDI12 requires 9.6V to 14V Supply)
-- SDI12 was first released in 1988 and is free to use
+- The Open-SDI12-Blue Hardware works from 2.8V(!) to 14V Supply (originally SDI-12 requires 9.6V to 14V Supply)
+- SDI-12 was first released in 1988 and is free to use
 
 # Sponsors #
 This project was sponsered and supported by:
