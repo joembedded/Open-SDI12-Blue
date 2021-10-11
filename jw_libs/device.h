@@ -3,7 +3,7 @@
 // *** Select DEVICE_TYP to build here: ***
 // Typen 100-299 sind Bootloader/Inits 300-999 Sensoren! >=1000..xx FS-Anwendungen
 // ---Bootloaders/Test-Basis---
-//#define DEVICE_TYP  200 // Dummy For Tests or Bootloader
+#define DEVICE_TYP  200 // Dummy For Tests or Bootloader
 // ---Sensors---
 //#define DEVICE_TYP  300 // *** Pewatron_Ceramic Pressure Sensor ***
 //#define DEVICE_TYP  310 // *** Keller_LD Piezo Pressure Sensor ***
@@ -13,7 +13,7 @@
 //#define DEVICE_TYP  350 // *** 24Bit A/D-Converter ADS1220  ***
 //#define DEVICE_TYP  360 // *** EE08 - Precise Temperature/Humidity Sensor ***
 //#define DEVICE_TYP  370 // *** TeraRangerEvo - Lidar Sensor ***
-#define DEVICE_TYP  380 // *** HC2 - Precise Temperature/Humidity Sensor ***
+//#define DEVICE_TYP  380 // *** HC2 - Precise Temperature/Humidity Sensor ***
 
 // Features
 // ---Bootloaders---
