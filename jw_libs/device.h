@@ -3,7 +3,7 @@
 // *** Select DEVICE_TYP to build here: ***
 // Typen 100-299 sind Bootloader/Inits 300-999 Sensoren! >=1000..xx FS-Anwendungen
 // ---Bootloaders/Test-Basis---
-#define DEVICE_TYP  200 // Dummy For Tests or Bootloader
+//#define DEVICE_TYP  200 // Dummy For Tests or Bootloader
 // ---Sensors---
 //#define DEVICE_TYP  300 // *** Pewatron_Ceramic Pressure Sensor ***
 //#define DEVICE_TYP  310 // *** Keller_LD Piezo Pressure Sensor ***
@@ -14,6 +14,7 @@
 //#define DEVICE_TYP  360 // *** EE08 - Precise Temperature/Humidity Sensor ***
 //#define DEVICE_TYP  370 // *** TeraRangerEvo - Lidar Sensor ***
 //#define DEVICE_TYP  380 // *** HC2 - Precise Temperature/Humidity Sensor ***
+#define DEVICE_TYP  390 // *** FMR20 Radar Distance Sensor ***
 
 // Features
 // ---Bootloaders---
@@ -87,6 +88,14 @@
   // *** HC2 - Precise Temperature/Humidity Sensor ***
   //#define HAS_FS // has NO Filesystem!
   #define ENABLE_BLE // Wenn definiert SD anwerfen fuer IRQs
+  #define DEVICE_FW_VERSION 1 // Release in Steps of 10 (35 == V3.5, 1: V0.1) // FW_VWEION uns TYP wird vei CONTENT mitgeschickt
+#endif
+#define DEVICE_TYP  390 
+
+#if DEVICE_TYP == 390
+  // *** FMR20 Radar Distance Sensor ***
+  //#define HAS_FS // has NO Filesystem!
+  //#define ENABLE_BLE // Wenn definiert SD anwerfen fuer IRQs
   #define DEVICE_FW_VERSION 1 // Release in Steps of 10 (35 == V3.5, 1: V0.1) // FW_VWEION uns TYP wird vei CONTENT mitgeschickt
 #endif
 
