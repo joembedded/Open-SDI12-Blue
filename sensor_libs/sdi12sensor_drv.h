@@ -24,6 +24,9 @@ extern uint8_t sdi_tx_delay;
 #define ERROR_FRAMING_ERROR 1008
 #define ERROR_NOT_ENOUGH_DATA 1009
 #define ERROR_DATA_CRC   1010
+#define ERROR_PROTOCOL_TX   1011
+#define ERROR_PROTOCOL_RX   1012
+#define ERROR_PARAMETER      1013
 
 
 int16_t  sdi_getcmd(uint16_t anz, int32_t wt);
