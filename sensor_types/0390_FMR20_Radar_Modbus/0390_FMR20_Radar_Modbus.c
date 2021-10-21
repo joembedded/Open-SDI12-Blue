@@ -117,7 +117,7 @@ typedef struct{
   // Working Vars
   char *pcon; // Points to Config
   char *pficon; // Points to FI Part
-  uint8_t sdireg_cnt; // For Scan (D)
+  uint8_t sdireg_cnt; // For Scan (D) (for Param)
 } MODBUS_REQUEST;
 
 static MODBUS_REQUEST mbr;
@@ -195,6 +195,7 @@ static int16_t mob_uart_uninit(uint8_t isrc) {
 
 // Modbus-Antwort lesen Result: Read-Len>4 oder: Error
 // TX-Frame required for RX-Check
+// Ret: Datalen(>0) or <0: ERROR
 int16_t mob_get_reply(int16_t wt) {
   int16_t c;
 
@@ -308,11 +309,12 @@ typedef union{
 	float fzahl;
 } MVAL; // Konvert Bytes to FLOAT
 
+// Res: Anz. Data
 int16_t mob_scan_vals(void) {
   uint8_t *pmb = mob_ibuf+3; // Points to Data Block
   uint8_t idx=0;
   MVAL mv;
-  char *pc=mbr.pficon;
+  char *pc=mbr.pficon; // Reuses old FI pointer
   char c;
   for(;;){
     c=*pc++;
@@ -349,7 +351,7 @@ int16_t modbus_34_request(uint8_t addr, uint8_t fkt, uint16_t reg, uint8_t intCn
   return mob_send_cmd(8); // Send 8
 }
 
-// Scan Konfig-String 
+// Scan Konfig-String  (<0: Error, 0:Ende, >0: Kanaele) 
 int16_t mbr_scan(void){
   char c, *pc=mbr.pcon;
   c=*pc++;
@@ -358,18 +360,20 @@ int16_t mbr_scan(void){
   else return -ERROR_PARAMETER; // only r oder h allowed
   mbr.addr=strtoul(pc,&pc,0); // 0 allowed as Broadcast
   mbr.reg=strtoul(pc,&pc,0); // Reg
-  mbr.intCnt=0;
   if(*pc==' ') pc++; // Opt. 1 WS!
   mbr.pficon=pc;  // Save ScanFfIi
   mbr.intCnt=0;
+  int16_t anz=0;
   for(;;){
     c=*pc++;
     if(c=='f' || c=='F') mbr.intCnt+=2;
     else if(c=='i' || c=='I') mbr.intCnt++;
     else break; // EOL
+    anz++;
   }
   mbr.pcon=pc;
-  return mbr.intCnt; 
+  if(anz>MB_RAW_VALS) return -ERROR_PARAMETER; // Too many Regs!
+  return anz;   // Anzahl Kanaele
 }
 
 /***********************************************************************
@@ -377,26 +381,42 @@ int16_t mbr_scan(void){
 * Messprg steht in Konfig
 ***********************************************************************/
 int16_t mob_measure(void) {
-  int16_t res;
+  int16_t res,anz;
 
-  mbr.pcon=param.konfig;
+  mbr.pcon=param.konfig; // Komplettmessung anhand Konfig-String
   mbr.sdireg_cnt=0;
   for(;;){
-    res=mbr_scan();
-    if(res>0){
+    anz=mbr_scan(); // Returns No of Values
+    if(anz>0){
       nrf_gpio_pin_clear(MOB_NRXEN_PIN); // L:RX_on H:RX_off
       res = modbus_34_request(mbr.addr, mbr.fkt, mbr.reg, mbr.intCnt); 
       if (!res) {
-        res = mob_get_reply(MODBUS_REPLY_WAIT); //(200) msec auf Antwort warten
+        res = mob_get_reply(MODBUS_REPLY_WAIT); //(200) msec auf Antwort warten (Res <0 or >0)
       }
       nrf_gpio_pin_set(MOB_NRXEN_PIN); // L:RX_on H:RX_off
 
       if (res < 0){
-        for (uint16_t i = 0; i < MB_RAW_VALS; i++)
+        for (uint16_t i = 0; i < anz; i++)
         modbus_raw_fval[i] = res; 
-      }else{
-        res=mob_scan_vals(); // 0: OK!
+      }else res=mob_scan_vals(); // Return >0 or <0
+
+      uint16_t idx;
+      float fval;
+      for (uint16_t i = 0; i < anz; i++){
+        // Werte nach  SDI12-Regs uebertragen
+        idx=mbr.sdireg_cnt++; // In the End: mbr.sdireg_cnt<=anz_channels
+        if(idx>=MAX_CHAN) return -ERROR_PARAMETER;
+        sdi_valio.channel_val[idx].punit = "Uxxx";
+        if (res>0) {
+            fval = (float)modbus_raw_fval[idx];
+            fval *= param.koeff[idx*2]; // Def. 1.0
+            fval -= param.koeff[idx*2+1]; // Def. 0.0
+        } else {
+          fval = res; // Error..
+        }
+        snprintf(sdi_valio.channel_val[idx].txt, 11, "%+f", fval);
       }
+
       if(*mbr.pcon==0) break; // konfif ende erreicht
     }else break; // mbr_scan-Error
   }
@@ -414,15 +434,10 @@ void messen_mobdbg_werte(void) {
   res = mob_measure();
   mob_uart_uninit(SRC_CMDLINE);
   if(res<=0) tb_printf("MOB Read Error/No Reply! %d\n", res);
-  else{
+  else  tb_printf("MOB Read OK: %d\n", res);    
 
-xx // WorkInProgress 13.10.21
-
-// Noch nicht ganz OK, aber D fehlt noch...
-    tb_printf("MOB Read OK: %d\n", res);    
-    for(uint16_t i=0;i<res;i++){
-      tb_printf("#%d: %f\n", i,modbus_raw_fval[i]);
-    }
+  for(uint16_t i=0;i<mbr.sdireg_cnt;i++){
+    tb_printf("#%d: %s %s\n", i,sdi_valio.channel_val[i].txt, sdi_valio.channel_val[i].punit);
   }
   return;
 }
