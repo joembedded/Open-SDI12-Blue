@@ -89,9 +89,11 @@
 #define MB_RAW_VALS 9 // Maximum 9 Values
 #define ANZ_KOEFF (MB_RAW_VALS * 2)
 #define KONFIG_MAX 80 // Konfiguration String
+#define MAX_UNIT 6  // Max. Anz. Stellen der Unit (ohne 0) "VMsqud" waere OK
 typedef struct {
   float koeff[ANZ_KOEFF];
-  char konfig[KONFIG_MAX];
+  char konfig[KONFIG_MAX]; // Knofigurations Mess-Prg als String
+  char kunits[KONFIG_MAX]; // Konfigurations-Units als String
 } PARAM;
 // Test Setup for Default Koeffs
 PARAM param = {
@@ -104,7 +106,8 @@ PARAM param = {
         1.0, 0.0,     // #6
         1.0, 0.0,     // #7
         1.0, 0.0},    // #8
-    "r200 5000 FFFFF", // r:ReadInputReg(fkt3) 5 Regs. from Reg 5000 at MB Addr 200 to #0-#4 as Float
+    "r200 5000 F r200 5002 FFFF", // r:ReadInputReg(fkt3) 5 Regs. from Reg 5000 at MB Addr 200 to #0-#4 as Float
+    "u1 u2 u3 u4", // Units, Space separated
 };
 
 // Analyses Scan Data
@@ -117,10 +120,17 @@ typedef struct{
   // Working Vars
   char *pcon; // Points to Config
   char *pficon; // Points to FI Part
-  uint8_t sdireg_cnt; // For Scan (D) (for Param)
+  uint8_t sdireg_cnt; // For Scan (D) (for Param) Zahelt Laufend hoch 
+  uint8_t pass_cnt; // Anzahl Modbus-Calls
 } MODBUS_REQUEST;
 
 static MODBUS_REQUEST mbr;
+
+typedef struct{
+    char unit[MAX_UNIT+1]; // incl 0
+} MBR_UNITS;
+static MBR_UNITS mbr_units[MAX_CHAN];
+
 
 //------------------- Implementation -----------
 
@@ -373,18 +383,55 @@ int16_t mbr_scan(void){
   }
   mbr.pcon=pc;
   if(anz>MB_RAW_VALS) return -ERROR_PARAMETER; // Too many Regs!
+  mbr.pass_cnt++; // Count this Call
   return anz;   // Anzahl Kanaele
 }
 
 /***********************************************************************
+* Scannen des Mess-PRG
+***********************************************************************/
+int16_t mob_scan_measure(void){
+  int16_t res,anz;
+
+  mbr.pcon=param.konfig; // Komplettmessung anhand Konfig-String
+  mbr.sdireg_cnt=0; // Zaehlt hoch
+  mbr.pass_cnt=0;
+  for(uint8_t i=0;i<MAX_CHAN; i++){
+    sprintf(mbr_units[i].unit,"?%u?",i);  // Default-Units
+  }
+  char *pc=param.kunits,*pc0;
+  uint8_t idx=0;
+  for(;;){
+    while(*pc==' ') pc++;
+    pc0=pc;
+    while(*pc>' ') pc++;
+    if(pc0!=pc) {
+      pc0=strncpy(mbr_units[idx++].unit,pc0,6);
+      while(*pc0>' ') pc0++;
+      *pc0=0; 
+    }else break;
+    if(idx==MAX_CHAN) break;  
+  }
+  for(;;){
+    anz=mbr_scan(); // Returns No of Values
+    if(anz>0){
+      mbr.sdireg_cnt+=anz;
+      if(*mbr.pcon==0) break; // konfif ende erreicht
+    }else break; // mbr_scan-Error
+  }
+  return res;
+}
+
+/***********************************************************************
 * mob_measure: Komplette Modbus-Messung durchfuehren
-* Messprg steht in Konfig
+* Messprg steht in Konfig. Res: >0: OK, <0: Error
 ***********************************************************************/
 int16_t mob_measure(void) {
   int16_t res,anz;
 
   mbr.pcon=param.konfig; // Komplettmessung anhand Konfig-String
-  mbr.sdireg_cnt=0;
+  mbr.sdireg_cnt=0; // Zaehlt hoch
+  mbr.pass_cnt=0;
   for(;;){
     anz=mbr_scan(); // Returns No of Values
     if(anz>0){
@@ -406,7 +453,7 @@ int16_t mob_measure(void) {
         // Werte nach  SDI12-Regs uebertragen
         idx=mbr.sdireg_cnt++; // In the End: mbr.sdireg_cnt<=anz_channels
         if(idx>=MAX_CHAN) return -ERROR_PARAMETER;
-        sdi_valio.channel_val[idx].punit = "Uxxx";
+        sdi_valio.channel_val[idx].punit = mbr_units[idx].unit;
         if (res>0) {
             fval = (float)modbus_raw_fval[idx];
             fval *= param.koeff[idx*2]; // Def. 1.0
@@ -429,7 +476,10 @@ int16_t mob_measure(void) {
 void messen_mobdbg_werte(void) {
   float fval;
   int16_t res;
-  tb_printf("Measure MOB\n");
+  res = mob_scan_measure();
+  tb_printf("--Scan MOB:%d: D:%d P:%d--\n",res,mbr.sdireg_cnt,mbr.pass_cnt);
+
+  tb_printf("--Measure MOB--\n");
   mob_uart_init(SRC_CMDLINE);
   res = mob_measure();
   mob_uart_uninit(SRC_CMDLINE);
