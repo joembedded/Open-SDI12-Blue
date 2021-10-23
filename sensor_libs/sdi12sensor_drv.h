@@ -6,9 +6,9 @@
 ***************************************************/
 
 
-#define SDI_OBUFS 84
+#define SDI_OBUFS 84+20           // 20 Reserve(Debug/Config)
 extern char sdi_obuf[SDI_OBUFS]; // Der OUT-Buffer min 81 (75+6+1) 
-#define SDI_IBUFS 84
+#define SDI_IBUFS 84+20           // 20 Reserve(Debug/Config)
 extern char sdi_ibuf[SDI_IBUFS]; // Der IN-Buffer 
 extern int16_t sdi_ccnt;				// Counts incumming chars
 extern uint8_t sdi_tx_delay;

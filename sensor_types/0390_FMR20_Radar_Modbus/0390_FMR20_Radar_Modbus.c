@@ -11,7 +11,7 @@
 * It runs with Modbus and internally uses a nRF51822 BLE Soc.
 *
 * IMPORTANT: By Default the FMR20 uses "9600 8E1" at Addr. 200.d.
-* This is not very commen, please set to "9600 8N1! 
+* "8E1" This is not very common...
 *
 * The  FMR20 needs 5-30V! Current is ca. 5 mA
 * Power may be switched via IO or ext. Transistor if
@@ -92,7 +92,7 @@
 #define MAX_UNIT 6  // Max. Anz. Stellen der Unit (ohne 0) "VMsqud" waere OK
 typedef struct {
   float koeff[ANZ_KOEFF];
-  char konfig[KONFIG_MAX]; // Knofigurations Mess-Prg als String
+  char konfig[KONFIG_MAX]; // Konfigurations Mess-Prg als String "r200 5000 F r200 5002 FFFF"
   char kunits[KONFIG_MAX]; // Konfigurations-Units als String
 } PARAM;
 // Test Setup for Default Koeffs
@@ -106,8 +106,9 @@ PARAM param = {
         1.0, 0.0,     // #6
         1.0, 0.0,     // #7
         1.0, 0.0},    // #8
-    "r200 5000 F r200 5002 FFFF", // r:ReadInputReg(fkt3) 5 Regs. from Reg 5000 at MB Addr 200 to #0-#4 as Float
-    "u1 u2 u3 u4", // Units, Space separated
+    // konfig: Possibility to read different regs from different addr, ... see Docu:
+    "r200 5000 FFFFF", // r:ReadInputReg(fkt3) 5 Regs. from Reg 5000 at MB Addr 200 to #0-#4 as Float
+    "Lev m db oC Sig Diag", // Units, Space separated
 };
 
 // Analyses Scan Data
@@ -167,7 +168,7 @@ static const app_uart_comm_params_t _mob_uart_comm_params = {
     UART_PIN_DISCONNECTED /*RTS_PIN_NUMBER*/,
     UART_PIN_DISCONNECTED /*CTS_PIN_NUMBER*/,
     /*APP_UART_FLOW_CONTROL_ENABLED */ APP_UART_FLOW_CONTROL_DISABLED,
-    false, // Not use Parity (bec. 8 Bits)
+    true, // (false:Not) use Parity
     STD_MOB_BAUDRATE};
 static bool _uart_tbdbg_init; // tb_tools-uart was iniit
 
@@ -390,8 +391,8 @@ int16_t mbr_scan(void){
 /***********************************************************************
 * Scannen des Mess-PRG
 ***********************************************************************/
-int16_t mob_scan_measure(void){
-  int16_t res,anz;
+int16_t mob_scan_config(void){
+  int16_t anz;
 
   mbr.pcon=param.konfig; // Komplettmessung anhand Konfig-String
   mbr.sdireg_cnt=0; // Zaehlt hoch
@@ -419,7 +420,8 @@ int16_t mob_scan_measure(void){
       if(*mbr.pcon==0) break; // konfif ende erreicht
     }else break; // mbr_scan-Error
   }
-  return res;
+  if(!mbr.sdireg_cnt) return -ERROR_PARAMETER;
+  return mbr.sdireg_cnt;
 }
 
 /***********************************************************************
@@ -427,7 +429,7 @@ int16_t mob_scan_measure(void){
 * Messprg steht in Konfig. Res: >0: OK, <0: Error
 ***********************************************************************/
 int16_t mob_measure(void) {
-  int16_t res,anz;
+  int16_t res=-ERROR_PARAMETER,anz;
 
   mbr.pcon=param.konfig; // Komplettmessung anhand Konfig-String
   mbr.sdireg_cnt=0; // Zaehlt hoch
@@ -476,7 +478,7 @@ int16_t mob_measure(void) {
 void messen_mobdbg_werte(void) {
   float fval;
   int16_t res;
-  res = mob_scan_measure();
+  res = mob_scan_config();
   tb_printf("--Scan MOB:%d: D:%d P:%d--\n",res,mbr.sdireg_cnt,mbr.pass_cnt);
 
   tb_printf("--Measure MOB--\n");
@@ -527,6 +529,7 @@ void sensor_init(void) {
 
   // Try to read Parameters
   intpar_mem_read(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
+  mob_scan_config();  // Scan Configuration (mbr.sdireg_cnt,mbr.pass_cnt)
 
   // Setup GPIOs
   nrf_gpio_cfg_output(MOB_PWR_PIN); // H:Pwr/Term ON L:Off
@@ -555,11 +558,12 @@ bool sensor_valio_input(char cmd, uint8_t carg) {
   if (cmd != 'M')
     return false; // This sensor only supports M, M1
   if (carg == 0) {
-    sdi_valio.anz_channels = 2;
-    sdi_valio.m_msec = WAIT_MS + MODBUS_REPLY_WAIT;
+
+    sdi_valio.anz_channels = mbr.sdireg_cnt;
+    sdi_valio.m_msec = WAIT_MS + (MODBUS_REPLY_WAIT*mbr.pass_cnt);
   } else if (carg == 1) {
-    sdi_valio.anz_channels = 3;
-    sdi_valio.m_msec = WAIT_MS + MODBUS_REPLY_WAIT + 50;
+    sdi_valio.anz_channels = mbr.sdireg_cnt+1;
+    sdi_valio.m_msec = WAIT_MS + (MODBUS_REPLY_WAIT*mbr.pass_cnt) + 50;
   } else
     return false;
 
@@ -592,32 +596,10 @@ int16_t sensor_valio_measure(uint8_t isrc) {
   nrf_gpio_pin_clear(MOB_PWR_PIN);
 #endif
 
-  // Prepare Output
-  /*
-  sdi_valio.channel_val[0].punit = "%rH";
-  if (res>=0) {
-    fval = mob_hum;
-    fval *= param.koeff[2]; // Def. 1.0
-    fval -= param.koeff[3]; // Def. 0.0
-  } else {
-    fval = res; // Error..
-  }
-  snprintf(sdi_valio.channel_val[0].txt, 11, "%+.1f", fval);
-
-  sdi_valio.channel_val[1].punit = "oC";
-  if (res>=0) {
-    fval = mob_temp;
-    fval *= param.koeff[0]; // Def. 1.0
-    fval -= param.koeff[1]; // Def. 0.0
-  } else {
-    fval = res;
-  }
-  snprintf(sdi_valio.channel_val[1].txt, 11, "%+.2f", fval);
-*/
-
   if (sdi_valio.measure_arg) {
-    snprintf(sdi_valio.channel_val[2].txt, 11, "%+.2f", get_vbat_aio()); // Only 2 digits
-    sdi_valio.channel_val[2].punit = "VSup";
+    if(mbr.sdireg_cnt>=MAX_CHAN) return -ERROR_PARAMETER;
+    snprintf(sdi_valio.channel_val[mbr.sdireg_cnt].txt, 11, "%+.2f", get_vbat_aio()); // Only 2 digits
+    sdi_valio.channel_val[mbr.sdireg_cnt].punit = "VSup";
   }
   return 0;
 }
@@ -630,6 +612,8 @@ int16_t sensor_valio_measure(uint8_t isrc) {
 void sensor_valio_xcmd(uint8_t isrc, char *pc) {
   uint16_t pidx;
   float fval;
+  char* hpn;
+  int16_t res;
 
   if (*pc == 'K') { // Kn! or Kn=val!
     pidx = (uint16_t)strtoul(pc + 1, &pc, 0);
@@ -644,6 +628,41 @@ void sensor_valio_xcmd(uint8_t isrc, char *pc) {
     // Send Koeffs
     param.koeff[pidx] = fval;
     sprintf(sdi_obuf, "%cK%d=%f", my_sdi_adr, pidx, fval);
+
+  // ===Special to MODBUS: 
+  }else if (*pc == 'U') { // U! or U=unit!
+    pc++;
+    if (*pc == '=') { // Set Units
+       hpn=pc+1;
+    }else hpn=NULL;
+    while(*pc && *pc!='!') pc++;
+    if (*pc != '!')
+      return;
+    if(hpn) {
+      *pc=0;  // Remove trailing '!'
+      strncpy(param.kunits,hpn,KONFIG_MAX);
+    }
+    // Show Unit or ''
+    res = mob_scan_config();  // Test
+    if(res<=0) sprintf(sdi_obuf, "%cU:Err%d '%s'", my_sdi_adr,res,param.kunits);
+    else sprintf(sdi_obuf, "%cU='%s'", my_sdi_adr,param.kunits);
+
+  }else if (*pc == 'C') { // Cn! or C=config!
+    pc++;
+    if (*pc == '=') { // Set Config
+       hpn=pc+1;
+    }else hpn=NULL;
+    while(*pc && *pc!='!') pc++;
+    if (*pc != '!')
+      return;
+    if(hpn) {
+      *pc=0;  // Remove trailing '!'
+      strncpy(param.konfig,hpn,KONFIG_MAX);
+    }
+    // Show Konfig or ''
+    res = mob_scan_config();  // Test
+    if(res<=0) sprintf(sdi_obuf, "%cC:Err%d '%s'", my_sdi_adr,res,param.konfig);
+    else sprintf(sdi_obuf, "%cC='%s'", my_sdi_adr,param.konfig);
 
   } else if (!strcmp(pc, "Write!")) { // Write SDI_Addr and Koefficients to Memory
     intpar_mem_erase();               // Compact Memory

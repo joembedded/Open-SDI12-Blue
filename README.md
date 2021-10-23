@@ -24,6 +24,7 @@ Current State:
 - Precise rugged Temperature/Humidity Sensor EE08 (Device Type 360): stable and tested
 - ToF Distance Sensor TeraRanger Evo (Device Type 370): stable and tested
 - Precise Temperature/Humidity Sensor HC2 (Device Type 380): stable and tested
+- MODBUS converter (here for E+H Radar Distance Sensor FMR20) (Device Type 390): stable and tested
 
 todo: 
 - Docu

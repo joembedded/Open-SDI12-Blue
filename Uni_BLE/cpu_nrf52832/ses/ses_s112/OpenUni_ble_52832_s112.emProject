@@ -133,7 +133,7 @@
     <folder Name="ApplicSensor">
       <file file_name="../../../../sensor_types/osx_main.c" />
       <file file_name="../../../../sensor_types/0200_test/0200_testsensor.c">
-        <configuration Name="Debug" build_exclude_from_build="Yes" />
+        <configuration Name="Debug" build_exclude_from_build="No" />
         <configuration Name="Release" build_exclude_from_build="Yes" />
       </file>
       <file file_name="../../../../sensor_types/0300_Pewatron_KKD18/0300_Pewatron_KKD18.c">
@@ -167,7 +167,9 @@
       <file file_name="../../../../sensor_types/0380_Rotronic_HC2/0380_Rotronic_HC2.c">
         <configuration Name="Debug" build_exclude_from_build="Yes" />
       </file>
-      <file file_name="../../../../sensor_types/0390_FMR20_Radar_Modbus/0390_FMR20_Radar_Modbus.c" />
+      <file file_name="../../../../sensor_types/0390_FMR20_Radar_Modbus/0390_FMR20_Radar_Modbus.c">
+        <configuration Name="Debug" build_exclude_from_build="Yes" />
+      </file>
     </folder>
   </project>
   <configuration
