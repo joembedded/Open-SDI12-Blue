@@ -90,7 +90,6 @@
   #define ENABLE_BLE // Wenn definiert SD anwerfen fuer IRQs
   #define DEVICE_FW_VERSION 1 // Release in Steps of 10 (35 == V3.5, 1: V0.1) // FW_VWEION uns TYP wird vei CONTENT mitgeschickt
 #endif
-#define DEVICE_TYP  390 
 
 #if DEVICE_TYP == 390
   // *** FMR20 Radar Distance Sensor ***

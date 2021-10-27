@@ -309,8 +309,9 @@ int16_t sdi_process_cmd(uint8_t isrc, char *const ps_ibuf) {
           my_sdi_adr, mac_addr_h, mac_addr_l,
           DEVICE_TYP,DEVICE_FW_VERSION/10,DEVICE_FW_VERSION%10);
         if(get_pin()) { // PIN found => Add it
-          sprintf(pc,",P:%u!",get_pin());
-        }else strcat(pc,"!"); // No Pin
+          pc+=sprintf(pc,",P:%u",get_pin());
+        }
+        strcpy(pc,"!");
 
       } // else 
       sensor_valio_xcmd(isrc,ps_ibuf+2);
