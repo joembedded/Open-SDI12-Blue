@@ -110,6 +110,7 @@
       <file file_name="../../../../jw_libs/intmem.c" />
       <file file_name="../../../../jw_libs/saadc.c" />
       <file file_name="../../../../jw_libs/i2c.c" />
+      <file file_name="../../../../jw_libs/onewire.c" />
     </folder>
     <folder Name="nRF_Segger_RTT">
       <file file_name="../../../../../../external/segger_rtt/SEGGER_RTT.c" />
@@ -133,7 +134,7 @@
     <folder Name="ApplicSensor">
       <file file_name="../../../../sensor_types/osx_main.c" />
       <file file_name="../../../../sensor_types/0200_test/0200_testsensor.c">
-        <configuration Name="Debug" build_exclude_from_build="No" />
+        <configuration Name="Debug" build_exclude_from_build="Yes" />
         <configuration Name="Release" build_exclude_from_build="No" />
       </file>
       <file file_name="../../../../sensor_types/0300_Pewatron_KKD18/0300_Pewatron_KKD18.c">
@@ -176,6 +177,7 @@
         <configuration Name="Debug" build_exclude_from_build="Yes" />
         <configuration Name="Release" build_exclude_from_build="Yes" />
       </file>
+      <file file_name="../../../../sensor_types/0400_DS_1Wire/0400_DS_1Wire.c" />
     </folder>
   </project>
   <configuration
