@@ -185,7 +185,7 @@ static void _ts_onewire_writebit(uint8_t bit){
        OW_PULL_LOW();  // Pull LOW active
         nrf_delay_us(60-1); // 60
        OW_PULL_HIGH(); // Pull High passive
-       if(bit) {
+       if(bit) { // Bit&2 was set
            // In Parasite Power mode Power must be switched on <10usec after command
 //#if MOSFET
 //  MOSFET=ON
@@ -215,7 +215,8 @@ static uint8_t _ts_onewire_readbit(void){
 
 
 /* Write complete Byte in LSBit first. Option for Fast exit, see writebit
-Both commands which require strong Pullup have 0 in the MSB (4x) */
+Both commands which require strong Pullup have 0 in the MSB (4x) 
+If Bit 8 is set: MOSFET ON!*/
 static void _ts_onewire_writebyte(uint16_t bval){
     uint8_t i;
     for(i=0;i<8;i++) {

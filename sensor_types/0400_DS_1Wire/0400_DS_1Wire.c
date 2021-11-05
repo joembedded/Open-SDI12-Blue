@@ -4,7 +4,9 @@
 *
 * (C) joembedded@gmail.com - joembedded.de
 *
-* UART is shared with tb_tools
+* 
+* DS18x20 needs about 1mA during Conversion/SPEE-Write
+* and 3.0V-5.5V Supply.
 *
 ***************************************************/
 
@@ -192,8 +194,8 @@ void sensor_valio_xcmd(uint8_t isrc, char *pc) {
 
   } else if (!strcmp(pc, "Write!")) { // Write SDI_Addr and Koefficients to Memory
     intpar_mem_erase();               // Compact Memory
-    intpar_mem_write(ID_INTMEM_SDIADR, 1, (uint8_t *)&my_sdi_adr);
     intpar_mem_write(ID_INTMEM_USER0, sizeof(param), (uint8_t *)&param);
+    intpar_mem_write(ID_INTMEM_SDIADR, 1, (uint8_t *)&my_sdi_adr);
     sprintf(sdi_obuf, "%c", my_sdi_adr);            // Standard Reply
   } else if (!strcmp(pc, "Sensor!")) {               // Identify Senor
     sprintf(sdi_obuf, "%cDS_1Wire!", my_sdi_adr); // Standard Reply

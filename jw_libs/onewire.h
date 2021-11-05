@@ -45,7 +45,7 @@ typedef struct{
     int16_t spee;     //  Value stored in the sensor's EEPROM
 } OW_ADDR;
 
-#define MAX_OW_SENS 15  // Expect max. XX sensors (each takes 8+2 byes RAM for the Addrs)
+#define MAX_OW_SENS 40//20  // Expect max. XX sensors (each takes 8+2 byes RAM for the Addrs)
 
 extern OW_ADDR ow_addr[MAX_OW_SENS]; // The 1 Wire ID and Addr. per sensor
 extern uint8_t ow_anz;
