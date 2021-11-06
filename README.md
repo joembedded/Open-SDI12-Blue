@@ -65,8 +65,8 @@ Link: [SDI12Term - Simple Terminal for PC with simple RS232-Connector](https://g
 
 Link: [BLE API Live (in Repository LTX BLE Demo)](https://joembedded.github.io/ltx_ble_demo/ble_api/index.html)
 
-## Read the full story... ###
-PDF: [A real-world project](./Img/Report_open_sdi12_en_rev2b.pdf)
+## Read the full story... ##
+PDF: [A real-world IoT project for rock monitoring in the Valais mountains (Switzerland)](./Img/Report_open_sdi12_en_rev2b.pdf)
 
 ## Links ###
 
