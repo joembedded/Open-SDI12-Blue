@@ -99,10 +99,7 @@
       <file file_name="../../../../JesFs_home/platform_nRF52/tb_tools_nrf52.c" />
       <file file_name="../../../../jw_libs/device.c" />
       <file file_name="../../../../jw_libs/filepool.c" />
-      <file file_name="../../../../nordic_mods/ble_advertising.c" />
-      <file file_name="../../../../nordic_mods/ble_nus.c" />
       <file file_name="../../../../jw_libs/bootinfo.c" />
-      <file file_name="../../../../jw_libs/ltx_ble.c" />
       <file file_name="../../../../jw_libs/ltx_errors.c" />
       <file file_name="../../../../jw_libs/ltx_errors.h" />
       <file file_name="../../../../jw_libs/device.h" />
@@ -134,8 +131,11 @@
       <file file_name="../../../../sensor_types/osx_main.c" />
       <file file_name="../../../../sensor_types/0200_test/0200_testsensor.c">
         <configuration Name="Debug" build_exclude_from_build="No" />
-        <configuration Name="Release" build_exclude_from_build="Yes" />
+        <configuration Name="Release" build_exclude_from_build="No" />
       </file>
+    </folder>
+    <folder Name="jo_lib_open5283">
+      <file file_name="../../../../jo_lib_open52832/jo_lib_open52832.a" />
     </folder>
   </project>
   <configuration

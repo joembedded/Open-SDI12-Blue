@@ -99,10 +99,6 @@
       <file file_name="../../../../JesFs_home/platform_nRF52/tb_tools_nrf52.c" />
       <file file_name="../../../../jw_libs/device.c" />
       <file file_name="../../../../jw_libs/filepool.c" />
-      <file file_name="../../../../nordic_mods/ble_advertising.c" />
-      <file file_name="../../../../nordic_mods/ble_nus.c" />
-      <file file_name="../../../../jw_libs/bootinfo.c" />
-      <file file_name="../../../../jw_libs/ltx_ble.c" />
       <file file_name="../../../../jw_libs/ltx_errors.c" />
       <file file_name="../../../../jw_libs/ltx_errors.h" />
       <file file_name="../../../../jw_libs/device.h" />
@@ -134,8 +130,8 @@
     <folder Name="ApplicSensor">
       <file file_name="../../../../sensor_types/osx_main.c" />
       <file file_name="../../../../sensor_types/0200_test/0200_testsensor.c">
-        <configuration Name="Debug" build_exclude_from_build="Yes" />
-        <configuration Name="Release" build_exclude_from_build="Yes" />
+        <configuration Name="Debug" build_exclude_from_build="No" />
+        <configuration Name="Release" build_exclude_from_build="No" />
       </file>
       <file file_name="../../../../sensor_types/0300_Pewatron_KKD18/0300_Pewatron_KKD18.c">
         <configuration Name="Debug" build_exclude_from_build="Yes" />
@@ -177,10 +173,9 @@
         <configuration Name="Debug" build_exclude_from_build="Yes" />
         <configuration Name="Release" build_exclude_from_build="Yes" />
       </file>
-      <file file_name="../../../../sensor_types/0400_DS_1Wire/0400_DS_1Wire.c" />
     </folder>
-    <folder Name="jo_libs">
-      <file file_name="../../../../../jo_libs/Output/Debug/Exe/Testlib.a" />
+    <folder Name="jo_lib_open52832">
+      <file file_name="../../../../jo_lib_open52832/jo_lib_open52832.a" />
     </folder>
   </project>
   <configuration
@@ -194,42 +189,4 @@
     c_preprocessor_definitions="DEBUG; DEBUG_NRF"
     gcc_debugging_level="Level 3"
     gcc_optimization_level="None" />
-  <project Name="Testlib">
-    <configuration
-      CMSIS_CORE="Yes"
-      Name="Common"
-      Placement="Flash"
-      Target="nRF52832_xxAA"
-      arm_architecture="v7EM"
-      arm_compiler_variant="SEGGER"
-      arm_core_type="Cortex-M4"
-      arm_endian="Little"
-      arm_fp_abi="Hard"
-      arm_fpu_type="FPv4-SP-D16"
-      arm_linker_heap_size="4096"
-      arm_linker_stack_size="4096"
-      arm_simulator_memory_simulation_parameter="ROM1;0x00000000;0x00080000;RAM1;0x00800000;0x00010000;RAM2;0x20000000;0x00010000;"
-      arm_target_debug_interface_type="ADIv5"
-      arm_target_device_name="nRF52832_xxAA"
-      arm_target_interface_type="SWD"
-      c_user_include_directories="$(PackagesDir)/nRF/Device/Include"
-      debug_register_definition_file="$(PackagesDir)/nRF/Device/Registers/nrf52.svd"
-      debug_stack_pointer_start="__stack_end__"
-      debug_start_from_entry_point_symbol="No"
-      debug_target_connection="J-Link"
-      link_linker_script_file="$(PackagesDir)/nRF/Device/Linker/ses_nrf52832_xxaa.icf"
-      linker_memory_map_file="$(PackagesDir)/nRF/Device/MemoryMap/nRF52832_xxAA_MemoryMap.xml"
-      linker_section_placement_file="$(StudioDir)/targets/Cortex_M/flash_placement.xml"
-      macros="NRFHeaderFile=$(PackagesDir)/nRF/Device/Include/nrf.h;DeviceHeaderFile=$(PackagesDir)/nRF/Device/Include/nrf52.h;DeviceSystemFile=$(PackagesDir)/nRF/Device/Source/system_nrf52.c;DeviceVectorsFile=$(PackagesDir)/nRF/Device/Startup/ses_startup_nrf52.s;DeviceLinkerScript=$(PackagesDir)/nRF/Device/Linker/ses_nrf52832_xxaa.icf;DeviceMemoryMap=$(PackagesDir)/nRF/Device/MemoryMap/nRF52832_xxAA_MemoryMap.xml;DeviceLibraryIdentifier=M4lf;DeviceFamily=nRF"
-      package_dependencies="CMSIS-CORE_V5"
-      project_directory="../../../../../jo_libs"
-      project_type="Library"
-      property_groups_file_path="$(PackagesDir)/nRF/XML/property_groups.xml"
-      target_reset_script="Reset();"
-      target_script_file="$(ProjectDir)/nRF_Target.js"
-      target_trace_initialize_script="EnableTrace(&quot;$(TraceInterfaceType)&quot;)" />
-    <configuration Name="Debug" c_preprocessor_definitions="DEBUG" />
-    <configuration Name="Release" gcc_optimization_level="Level 2 balanced" />
-    <file file_name="testlib.c" />
-  </project>
 </solution>
