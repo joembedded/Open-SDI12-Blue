@@ -118,6 +118,11 @@ void sensor_init(void) {
   // Set SNO to Low Mac, so same Name as BLE Advertising
   sprintf(sensor_id, "TT_DS_1W_0400_OSX%08X", mac_addr_l);
 
+#include "testlib.h"
+
+tb_printf("Testlib: %d\n",sum(5,7));
+
+
   for(uint8_t i=0;i<ANZ_KOEFF;i+=2){ // set pairs of (1.0,0.0)
       param.koeff[i]=1.0; // 0.0 by default.
   }
