@@ -65,6 +65,9 @@ Link: [SDI12Term - Simple Terminal for PC with simple RS232-Connector](https://g
 
 Link: [BLE API Live (in Repository LTX BLE Demo)](https://joembedded.github.io/ltx_ble_demo/ble_api/index.html)
 
+## Read the full story... ###
+PDF: [A real-world project](./Img/Report_open_sdi12_en_rev2b.pdf)
+
 ## Links ###
 
 Some Facts about SDI-12:
@@ -98,7 +101,6 @@ C:\nordic\nRF5_SDK_17.1.0
 |       +---hardware
 |       +---JesFs_Home
 |       +---jw_libs
-|       +---nordic_mods
 |       +---sensor_libs
 |       +---sensor_types
 |       +---Tools
