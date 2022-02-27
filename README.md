@@ -61,6 +61,10 @@ Different Temperature/Humidity Sensors: SHT21 (3D-printed) or Industrial EE08 or
 
 Link: [SDI12Term - Simple Terminal for PC with simple RS232-Connector](https://github.com/joembedded/SDI12Term)
 
+!['BlueShell'](./Img/BlueShell_k.png)
+
+Link: [BlueShell - Shell for Windows 10 / 11 (free)](https://joembedded.de/x3/pcapp)
+
 !['BLE API Live'](./Img/bleterm.jpg)
 
 Link: [BLE API Live (in Repository LTX BLE Demo)](https://joembedded.github.io/ltx_ble_demo/ble_api/index.html)
