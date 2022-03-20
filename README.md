@@ -63,7 +63,7 @@ Link: [SDI12Term - Simple Terminal for PC with simple RS232-Connector](https://g
 
 !['BlueShell'](./Img/BlueShell_k.png)
 
-Link: [BlueShell - Shell for Windows 10 / 11 (free)](https://joembedded.de/x3/pcapp)
+Link: [BlueShell - Shell for Windows 10 / 11 (free)](https://joembedded.de/x3/blueshell)
 
 !['BLE API Live'](./Img/bleterm.jpg)
 
