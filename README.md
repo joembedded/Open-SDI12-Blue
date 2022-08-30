@@ -91,7 +91,7 @@ This project was sponsered and supported by:
 Link: [TerraTransfer GmbH, Bochum, Germany](https://www.terratransfer.org)
 
 # Installation
-- Built with SES (V5.xx) and SDK 17.x.x
+- Built with SES (V6.22a (*)) and SDK 17.1.0   (*: Later Versions of SES require changed project settings!!!)
 - Based on JesFs 
 
 Use this Directory Structure:
