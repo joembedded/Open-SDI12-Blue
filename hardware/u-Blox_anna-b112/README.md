@@ -5,6 +5,6 @@ Release:
 - 0V3: Changed Position of I_Xn-Ports and added R6/R7 as (opt.) Pullups
 
 Adaptors:
-- MODBUS_BACK: Adapter for MODBUS (Check if pins are correct for Release)
+- MODBUS_BACK: Adapter for MODBUS (first use: FMR20 Radar)
 
 ***
